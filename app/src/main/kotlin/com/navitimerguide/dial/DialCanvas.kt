@@ -508,8 +508,8 @@ private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer) {
     // Brand stack lives in the UPPER THIRD of the dial — well above the
     // hub — matching the photo. Order top-to-bottom: wings, BREITLING,
     // 1884, NAVITIMER. Stack ends at about y = -0.18 r.
-    val logoY = g.center.y - g.rDial * 0.46f
-    val logoScale = g.rDial * 0.085f
+    val logoY = g.center.y - g.rDial * 0.45f
+    val logoScale = g.rDial * 0.110f          // total wing span ≈ 0.33 rDial
     drawBreitlingWings(Offset(g.center.x, logoY), logoScale)
 
     drawCenteredText(measurer, "BREITLING",
@@ -552,77 +552,106 @@ private fun DrawScope.drawCenteredText(
 }
 
 /**
- * The Breitling "Wings" logo as printed on the modern Navitimer dial.
- * NO anchor body — just two wing lobes spreading outward, with a wavy
- * scroll line beneath them. Total span ≈ 1.6 × scale wide, ≈ 0.5 ×
- * scale tall.
+ * The Breitling Wings logo as printed on this Navitimer dial.
+ * Reference: research/user-logo-3x.jpg (the user's photo, upscaled 3×)
+ * and research/official-logo-3x.jpg (Breitling's stock soldier shot).
+ *
+ * Composition (left and right are mirror images about c.x):
+ *   • OUTLINED wing — a closed contour with a curved upper "leading
+ *     edge" that humps near the inner third, then sweeps down to a
+ *     pointed tip. The bottom edge curves back gently.
+ *   • DOTTED feather texture inside each wing — two rows of small
+ *     bright circles (beadwork), 6 along the upper feather row and
+ *     5 along the lower. Dot radius shrinks toward the tip.
+ *   • CENTRAL anchor — a small inverted T beneath the wings' meeting
+ *     point: short vertical stem + short horizontal crossbar.
+ *   • WAVE underline — a 7-hump sinusoidal scroll spanning the full
+ *     width, drawn just below the wings (the historic "wake" symbol).
+ *
+ * Coordinate system: the logo is centred at [c]; all dimensions scale
+ * with [scale]. Total horizontal span ≈ 3.0 × scale; vertical ≈ 0.85.
  */
 private fun DrawScope.drawBreitlingWings(c: Offset, scale: Float) {
     val color = DialPalette.Numeral
-    val negative = DialPalette.DialGreenSpokeDark   // for "subtracted" feather grooves
-    val strokeW = scale * 0.05f
+    val strokeW = scale * 0.06f
 
-    // Solid wing lobes — left and right.
+    // ---- Wing outlines ----
     for (side in listOf(-1f, 1f)) {
-        val wing = Path().apply {
-            // Start near the centre, slightly below the meeting point.
-            moveTo(c.x + side * scale * 0.04f, c.y + scale * 0.02f)
-            // Up and out — "leading edge" arc.
+        val wingPath = Path().apply {
+            moveTo(c.x + side * scale * 0.06f, c.y - scale * 0.06f)
+            // Leading edge: short rise from centre, then long arched hump
             cubicTo(
-                c.x + side * scale * 0.55f, c.y - scale * 0.32f,
-                c.x + side * scale * 1.30f, c.y - scale * 0.20f,
-                c.x + side * scale * 1.55f, c.y - scale * 0.02f
+                c.x + side * scale * 0.30f, c.y - scale * 0.42f,
+                c.x + side * scale * 0.95f, c.y - scale * 0.42f,
+                c.x + side * scale * 1.45f, c.y - scale * 0.10f
             )
-            // Tip curls slightly downward.
+            // Tip — small curl
             cubicTo(
-                c.x + side * scale * 1.55f, c.y + scale * 0.05f,
-                c.x + side * scale * 1.40f, c.y + scale * 0.08f,
-                c.x + side * scale * 1.20f, c.y + scale * 0.06f
+                c.x + side * scale * 1.55f, c.y - scale * 0.02f,
+                c.x + side * scale * 1.50f, c.y + scale * 0.04f,
+                c.x + side * scale * 1.40f, c.y + scale * 0.04f
             )
-            // Bottom edge sweeping back to the centre.
+            // Trailing (lower) edge sweeping back to centre
             cubicTo(
-                c.x + side * scale * 0.80f, c.y + scale * 0.10f,
-                c.x + side * scale * 0.30f, c.y + scale * 0.10f,
-                c.x + side * scale * 0.04f, c.y + scale * 0.06f
+                c.x + side * scale * 1.00f, c.y + scale * 0.18f,
+                c.x + side * scale * 0.45f, c.y + scale * 0.18f,
+                c.x + side * scale * 0.06f, c.y + scale * 0.05f
             )
             close()
         }
-        drawPath(wing, color = color)
-        drawPath(wing, color = negative.copy(alpha = 0.6f), style = Stroke(width = strokeW * 0.4f))
+        drawPath(wingPath, color = color, style = Stroke(width = strokeW))
 
-        // Three "feather" grooves carved into each wing — drawn in dial-bg
-        // colour so they read as negative space inside the white wing.
-        for (k in 0..2) {
-            val featherPath = Path().apply {
-                val sx = c.x + side * scale * 0.20f
-                val sy = c.y - scale * (0.03f - k * 0.03f)
-                moveTo(sx, sy)
-                cubicTo(
-                    c.x + side * scale * (0.55f + k * 0.05f), c.y - scale * (0.20f - k * 0.04f),
-                    c.x + side * scale * (1.00f + k * 0.05f), c.y - scale * (0.13f - k * 0.04f),
-                    c.x + side * scale * (1.25f - k * 0.05f), c.y - scale * (0.02f - k * 0.04f)
-                )
+        // ---- Dotted beadwork — top row (along the leading edge) ----
+        run {
+            val n = 6
+            for (i in 0 until n) {
+                val t = (i + 0.5) / n
+                // Sample roughly along the upper arc
+                val px = c.x + side * scale * (0.25f + t.toFloat() * 1.10f)
+                val py = c.y - scale * (0.30f - (t.toFloat() - 0.5f) * (t.toFloat() - 0.5f) * 0.8f - 0.05f)
+                val r = scale * (0.046f - t.toFloat() * 0.014f)
+                drawCircle(color = color, radius = r, center = Offset(px, py))
             }
-            drawPath(featherPath, color = negative, style = Stroke(width = strokeW * 0.55f))
+        }
+        // ---- Dotted beadwork — lower row (just below) ----
+        run {
+            val n = 5
+            for (i in 0 until n) {
+                val t = (i + 0.5) / n
+                val px = c.x + side * scale * (0.30f + t.toFloat() * 0.95f)
+                val py = c.y - scale * 0.05f
+                val r = scale * (0.034f - t.toFloat() * 0.010f)
+                drawCircle(color = color, radius = r, center = Offset(px, py))
+            }
         }
     }
 
-    // Wavy scroll underline — three arched humps below the wings.
-    val waveY = c.y + scale * 0.18f
-    val waveStartX = c.x - scale * 1.30f
-    val waveEndX = c.x + scale * 1.30f
-    val humps = 5
+    // ---- Central anchor stub (inverted T below the wings' join) ----
+    drawLine(color = color,
+        start = Offset(c.x, c.y - scale * 0.04f),
+        end = Offset(c.x, c.y + scale * 0.18f),
+        strokeWidth = strokeW * 0.85f)
+    drawLine(color = color,
+        start = Offset(c.x - scale * 0.10f, c.y + scale * 0.16f),
+        end = Offset(c.x + scale * 0.10f, c.y + scale * 0.16f),
+        strokeWidth = strokeW * 0.75f)
+
+    // ---- Wave underline (7 humps) ----
+    val waveY = c.y + scale * 0.32f
+    val waveX0 = c.x - scale * 1.45f
+    val waveX1 = c.x + scale * 1.45f
+    val humps = 7
     val wavePath = Path().apply {
-        moveTo(waveStartX, waveY)
+        moveTo(waveX0, waveY)
         for (i in 0 until humps) {
-            val x0 = waveStartX + (waveEndX - waveStartX) * i / humps
-            val x1 = waveStartX + (waveEndX - waveStartX) * (i + 1) / humps
-            val cxh = (x0 + x1) / 2f
-            val cyh = waveY - scale * 0.07f
-            quadraticBezierTo(cxh, cyh, x1, waveY)
+            val x0 = waveX0 + (waveX1 - waveX0) * i / humps
+            val x1 = waveX0 + (waveX1 - waveX0) * (i + 1) / humps
+            val xMid = (x0 + x1) / 2f
+            val yPeak = waveY - scale * 0.08f
+            quadraticBezierTo(xMid, yPeak, x1, waveY)
         }
     }
-    drawPath(wavePath, color = color, style = Stroke(width = strokeW * 0.65f))
+    drawPath(wavePath, color = color, style = Stroke(width = strokeW * 0.7f))
 }
 
 // =============================================================== sub-dials
