@@ -42,10 +42,8 @@ fun Presets(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(12.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        Text("Quick examples", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.size(6.dp))
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),

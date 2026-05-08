@@ -38,14 +38,24 @@ class DialMathTest {
         }
     }
 
-    @Test fun `STAT marker encodes mile-to-km factor`() {
-        val ratio = DialMath.KM_MARKER / DialMath.STAT_MARKER
-        closeTo(DialMath.MILE_TO_KM, ratio, eps = 1e-9)
+    @Test fun `STAT marker is pinned to integer label 40`() {
+        closeTo(40.0, DialMath.STAT_MARKER, eps = 1e-9)
     }
 
-    @Test fun `NAUT marker encodes nautical-to-km factor`() {
+    @Test fun `NAUT marker is pinned to integer label 35`() {
+        closeTo(35.0, DialMath.NAUT_MARKER, eps = 1e-9)
+    }
+
+    @Test fun `STAT-to-KM ratio approximates mile-to-km factor`() {
+        // Markers pinned to integer numerals for visual fidelity to the
+        // dial; conversion factor accurate to ~0.5 %.
+        val ratio = DialMath.KM_MARKER / DialMath.STAT_MARKER
+        closeTo(DialMath.MILE_TO_KM, ratio, eps = 0.01)
+    }
+
+    @Test fun `NAUT-to-KM ratio approximates nautical-to-km factor`() {
         val ratio = DialMath.KM_MARKER / DialMath.NAUT_MARKER
-        closeTo(DialMath.NAUT_TO_KM, ratio, eps = 1e-9)
+        closeTo(DialMath.NAUT_TO_KM, ratio, eps = 0.01)
     }
 
     @Test fun `align rotation places outer X over inner Y`() {
@@ -61,15 +71,12 @@ class DialMathTest {
         closeTo(3.5, DialMath.multiplierFromRotation(rot))
     }
 
-    @Test fun `aligning STAT and KM converts miles to km correctly`() {
-        // Bezel rotated such that outer-10 sits over inner-STAT_MARKER:
-        // then outer-1 (= 10 wrapped, but conceptually 1 mile reading) should
-        // sit over inner-(STAT*1) and the value over inner-KM = 1 * 1.609344
-        // expressed in the same decade.
+    @Test fun `aligning STAT and KM converts miles to km within 1 percent`() {
+        // Bezel rotated such that outer-10 sits over inner-STAT_MARKER.
+        // Reading at KM should approximate 1 * MILE_TO_KM (within 1 %).
         val rot = DialMath.alignRotation(outerX = 10.0, innerY = DialMath.STAT_MARKER)
         val readKm = DialMath.outerValueAtInner(DialMath.KM_MARKER, rot)
-        // The ratio between readings at KM and at STAT must equal MILE_TO_KM
         val readStat = DialMath.outerValueAtInner(DialMath.STAT_MARKER, rot)
-        closeTo(DialMath.MILE_TO_KM, readKm / readStat)
+        closeTo(DialMath.MILE_TO_KM, readKm / readStat, eps = 0.01)
     }
 }

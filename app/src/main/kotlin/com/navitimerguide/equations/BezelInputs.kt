@@ -40,55 +40,39 @@ fun BezelInputs(
     onCommit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(12.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(
-            "Align two scales",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.size(2.dp))
-        Text(
-            "Type a value for each scale; the bezel snaps so they line up.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.size(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
-                value = outer,
-                onValueChange = { raw ->
-                    onOuterChange(raw.filter { it.isDigit() || it == '.' })
-                },
-                label = { Text("Outer bezel") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Next
-                )
+        OutlinedTextField(
+            value = outer,
+            onValueChange = { raw ->
+                onOuterChange(raw.filter { it.isDigit() || it == '.' })
+            },
+            label = { Text("Outer", style = MaterialTheme.typography.labelSmall) },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Decimal,
+                imeAction = ImeAction.Next
             )
-            OutlinedTextField(
-                value = inner,
-                onValueChange = { raw ->
-                    onInnerChange(raw.filter { it.isDigit() || it == '.' })
-                },
-                label = { Text("Inner bezel") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(onDone = { onCommit() })
-            )
-        }
+        )
+        OutlinedTextField(
+            value = inner,
+            onValueChange = { raw ->
+                onInnerChange(raw.filter { it.isDigit() || it == '.' })
+            },
+            label = { Text("Inner", style = MaterialTheme.typography.labelSmall) },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Decimal,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(onDone = { onCommit() })
+        )
     }
 }

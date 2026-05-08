@@ -17,8 +17,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -314,15 +316,13 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
     val ringMid = (g.rBezelOuter + g.rBezelInner) / 2f
     val ringWidth = g.rBezelOuter - g.rBezelInner
 
-    // Tall ticks now SPAN nearly the full ring height; medium ~60%; short ~40%.
-    // Outer end sits just inside the chrome edge so the inner end of a tall
-    // tick lines up with the outer edge of the chapter ring's tall tick on
-    // the same angle, giving the "ticks meeting across the step" look the
-    // photo shows.
-    val tallLen = ringWidth * 0.86f
-    val medLen = ringWidth * 0.58f
-    val shortLen = ringWidth * 0.40f
-    val tickOuterR = ringMid + ringWidth * 0.46f
+    // Tall ticks span the FULL ring width so their inner end sits at the
+    // bezel's inner edge — this lets the long inner-scale tick at the same
+    // angle visually meet across the thin step (per photo image 9).
+    val tickOuterR = g.rBezelOuter
+    val tallLen = ringWidth                    // full ring height
+    val medLen = ringWidth * 0.65f
+    val shortLen = ringWidth * 0.45f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -390,10 +390,10 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     drawCircle(color = Color(0xFF1F1F1F), radius = g.rChapterOuter, center = g.center,
         style = Stroke(width = width * 0.05f))
 
-    val tallLen = width * 0.86f
-    val medLen = width * 0.58f
-    val shortLen = width * 0.40f
-    val tickOuterR = midR + width * 0.46f
+    val tickOuterR = g.rChapterOuter
+    val tallLen = width                         // full chapter-ring width
+    val medLen = width * 0.65f
+    val shortLen = width * 0.45f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -466,6 +466,21 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
                 )
             }
         }
+
+    // Bracketing red triangles around inner red 10 (the unit index).
+    // Two small triangles, one on each side of the "10" numeral, both
+    // pointing OUTWARD from the dial centre. Per photo image 10.
+    val red10Angle = DialMath.drawAngleDeg(10.0)
+    listOf(-2.5, +2.5).forEach { delta ->
+        drawTriangleAtAngle(
+            center = g.center,
+            angleDeg = (red10Angle + delta).toFloat(),
+            radius = midR + width * 0.38f,
+            size = width * 0.13f,
+            color = DialPalette.Red,
+            inward = false
+        )
+    }
 }
 
 // =============================================================== dial background
@@ -550,19 +565,44 @@ private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer, wingsB
             fontWeight = FontWeight.SemiBold, letterSpacing = (g.rDial * 0.012f / density).sp),
         Offset(g.center.x, g.center.y - g.rDial * 0.165f))
 
-    // SWISS / MADE flank the 6 o'clock hour marker. Drawn here at the
-    // same y as the marker midpoint; the marker itself is in
-    // drawDialHourIndices.
-    val swissY = g.center.y + g.rDial * 0.835f
-    val swissStyle = TextStyle(color = DialPalette.Numeral.copy(alpha = 0.9f),
-        fontSize = (g.rDial * 0.034f / density).sp, fontWeight = FontWeight.Medium,
-        letterSpacing = (g.rDial * 0.008f / density).sp)
-    val swissL = measurer.measure(androidx.compose.ui.text.AnnotatedString("SWISS"), swissStyle)
-    val madeL = measurer.measure(androidx.compose.ui.text.AnnotatedString("MADE"), swissStyle)
-    drawText(textLayoutResult = swissL,
-        topLeft = Offset(g.center.x - g.rDial * 0.10f - swissL.size.width, swissY))
-    drawText(textLayoutResult = madeL,
-        topLeft = Offset(g.center.x + g.rDial * 0.10f, swissY))
+    // SWISS  MADE: curved along the bottom of the dial (just inside the
+    // chapter ring), with the gap between the two words straddling the
+    // 6 o'clock baton. Uses native canvas drawTextOnPath because Compose
+    // doesn't expose a path-based text API.
+    drawCurvedSwissMade(g)
+}
+
+private fun DrawScope.drawCurvedSwissMade(g: DialGeom) {
+    drawIntoCanvas { canvas ->
+        val arcRadius = g.rDial * 0.86f
+        val rect = android.graphics.RectF(
+            g.center.x - arcRadius, g.center.y - arcRadius,
+            g.center.x + arcRadius, g.center.y + arcRadius
+        )
+        val paint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb(230, 255, 255, 255)
+            textSize = g.rDial * 0.055f
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+            letterSpacing = 0.10f
+            isFakeBoldText = false
+        }
+        // Angles in Android: 0° = +x (right), 90° = +y (down), increasing CW.
+        // For text reading LEFT-to-RIGHT along the bottom we sweep
+        // counterclockwise (negative sweep) so the path goes from the
+        // higher angle to the lower angle.
+        //
+        // SWISS — left of the 6 o'clock baton: arc from ~135° down to ~100°.
+        val swissPath = android.graphics.Path().apply {
+            addArc(rect, 138f, -36f)
+        }
+        canvas.nativeCanvas.drawTextOnPath("SWISS", swissPath, 0f, 0f, paint)
+        // MADE — right of the 6 o'clock baton: arc from ~80° down to ~45°.
+        val madePath = android.graphics.Path().apply {
+            addArc(rect, 78f, -36f)
+        }
+        canvas.nativeCanvas.drawTextOnPath("MADE", madePath, 0f, 0f, paint)
+    }
 }
 
 private fun DrawScope.drawCenteredText(
@@ -759,8 +799,8 @@ private fun DrawScope.drawSubDialFace(
         val ty = center.y + (rL * sin(rad)).toFloat()
         val l = measurer.measure(
             androidx.compose.ui.text.AnnotatedString(txt),
-            TextStyle(color = DialPalette.Numeral, fontSize = (radius * 0.22f / density).sp,
-                fontWeight = FontWeight.Medium)
+            TextStyle(color = DialPalette.Numeral, fontSize = (radius * 0.30f / density).sp,
+                fontWeight = FontWeight.SemiBold)
         )
         drawText(textLayoutResult = l,
             topLeft = Offset(tx - l.size.width / 2f, ty - l.size.height / 2f))
@@ -879,10 +919,10 @@ private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
     val minAngle = (mFull * 6.0).toFloat()
     // Hand lengths per photo: hour reaches the sub-dial markers (~0.55 r),
     // minute reaches almost to the chapter ring inner edge (~0.85 r).
-    drawBatonHand(g.center, hourAngle, length = g.rDial * 0.55f,
-        outerW = g.rDial * 0.048f, innerW = g.rDial * 0.028f)
-    drawBatonHand(g.center, minAngle, length = g.rDial * 0.85f,
-        outerW = g.rDial * 0.038f, innerW = g.rDial * 0.020f)
+    drawBatonHand(g.center, hourAngle, length = g.rDial * 0.58f,
+        outerW = g.rDial * 0.050f, innerW = g.rDial * 0.030f)
+    drawBatonHand(g.center, minAngle, length = g.rDial * 0.92f,
+        outerW = g.rDial * 0.038f, innerW = g.rDial * 0.022f)
 }
 
 /**

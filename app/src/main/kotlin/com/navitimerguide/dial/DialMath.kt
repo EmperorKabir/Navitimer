@@ -41,9 +41,18 @@ object DialMath {
     const val RED_10: Double = 10.0
     const val RED_36: Double = 36.0
     const val RED_60_MPH: Double = 60.0
-    const val KM_MARKER: Double = 63.0
-    val STAT_MARKER: Double = KM_MARKER / MILE_TO_KM   // ~39.15  (printed numeral nearby on the photo: 40)
-    val NAUT_MARKER: Double = KM_MARKER / NAUT_TO_KM   // ~34.02  (printed numeral nearby on the photo: 35)
+    // Markers pinned to the printed numerals visible in the user's photo
+    // (image 7 shows outer-40 directly above inner "STAT 40"; image 8 shows
+    // outer-35 directly above inner "NAUT 35"; image 11 shows "KM" red text
+    // between scale-60 and scale-65, ≈ 64.5).
+    //
+    // The encoded conversion factors are therefore approximations:
+    //   KM / STAT = 64.5 / 40   = 1.6125  (vs true 1.609344, error ≈ 0.2 %)
+    //   KM / NAUT = 64.5 / 35   = 1.8429  (vs true 1.852,    error ≈ 0.5 %)
+    // Visually faithful to the dial; computationally correct to <1 %.
+    const val KM_MARKER: Double = 64.5
+    const val STAT_MARKER: Double = 40.0
+    const val NAUT_MARKER: Double = 35.0
 
     /** Wrap an angle to [0, 360). */
     fun wrap360(angle: Double): Double {
