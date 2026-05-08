@@ -13,17 +13,22 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
+import com.navitimerguide.R
 import com.navitimerguide.viewmodel.ChronoState
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
@@ -76,6 +81,7 @@ fun WatchDial(
 
 @Composable
 private fun StaticDial(measurer: TextMeasurer, modifier: Modifier) {
+    val wingsBitmap = ImageBitmap.imageResource(R.drawable.breitling_wings)
     Canvas(modifier = modifier) {
         val g = geom()
         drawCoinEdgeBaseplate(g)
@@ -84,7 +90,7 @@ private fun StaticDial(measurer: TextMeasurer, modifier: Modifier) {
         drawDialBackground(g)
         drawSunburstOverlay(g)
         drawDialHighlight(g)
-        drawBrandMarks(g, measurer)
+        drawBrandMarks(g, measurer, wingsBitmap)
         drawSubDialFaces(g, measurer)
         drawDialHourIndices(g)
         drawCrownAndPushers(g)
@@ -504,13 +510,29 @@ private fun DrawScope.drawDialHighlight(g: DialGeom) {
 
 // =============================================================== brand marks + winged anchor
 
-private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer) {
+private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer, wingsBitmap: ImageBitmap) {
     // Brand stack lives in the UPPER THIRD of the dial — well above the
     // hub — matching the photo. Order top-to-bottom: wings, BREITLING,
     // 1884, NAVITIMER. Stack ends at about y = -0.18 r.
-    val logoY = g.center.y - g.rDial * 0.45f
-    val logoScale = g.rDial * 0.110f          // total wing span ≈ 0.33 rDial
-    drawBreitlingWings(Offset(g.center.x, logoY), logoScale)
+    //
+    // Wings are now rendered from a bitmap asset extracted from the
+    // user's photo (res/drawable-nodpi/breitling_wings.png) for accurate
+    // pixel-level fidelity that hand-drawn paths can't match.
+    val targetWidth = g.rDial * 0.33f
+    val aspect = wingsBitmap.width.toFloat() / wingsBitmap.height.toFloat()
+    val targetHeight = targetWidth / aspect
+    val logoCenterY = g.center.y - g.rDial * 0.42f
+    val logoTopLeft = IntOffset(
+        x = (g.center.x - targetWidth / 2f).toInt(),
+        y = (logoCenterY - targetHeight / 2f).toInt()
+    )
+    drawImage(
+        image = wingsBitmap,
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(wingsBitmap.width, wingsBitmap.height),
+        dstOffset = logoTopLeft,
+        dstSize = IntSize(targetWidth.toInt(), targetHeight.toInt())
+    )
 
     drawCenteredText(measurer, "BREITLING",
         TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.092f / density).sp,
@@ -864,27 +886,54 @@ private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
 }
 
 /**
- * Central red chronograph seconds hand, including a counterweight tail.
- * Frozen at 12 when chrono is idle; sweeps continuously when running.
+ * Central red chronograph seconds hand. Reference: user's image #6 crop.
+ * Composition (from tip to tail):
+ *   • Long red NEEDLE from the hub to ~0.66 r tip.
+ *   • Short CHROME counterweight stem extending the OPPOSITE direction
+ *     from the hub by ~0.14 r (matches the photo — the stem below the
+ *     hub is silver, not red).
+ *   • Small RED disc at the very end of the chrome stem.
  */
 private fun DrawScope.drawChronoSecondsHand(g: DialGeom, chronoMs: Long) {
     val secs = (chronoMs / 1000.0) % 60.0
-    val angleDeg = (secs * 6.0)  // 360° / 60 sec
+    val angleDeg = (secs * 6.0)
     val rad = (angleDeg - 90.0) * PI / 180.0
     val cosA = cos(rad).toFloat()
     val sinA = sin(rad).toFloat()
+
+    // Red needle (hub → tip)
     val tipLen = g.rDial * 0.66f
-    val tailLen = g.rDial * 0.18f
     val tipX = g.center.x + tipLen * cosA
     val tipY = g.center.y + tipLen * sinA
+    drawLine(
+        color = DialPalette.SecondHand,
+        start = g.center,
+        end = Offset(tipX, tipY),
+        strokeWidth = g.rDial * 0.013f
+    )
+
+    // Chrome counterweight stem (hub → tail, OPPOSITE direction)
+    val tailLen = g.rDial * 0.16f
     val tailX = g.center.x - tailLen * cosA
     val tailY = g.center.y - tailLen * sinA
-    drawLine(color = DialPalette.SecondHand, start = Offset(tailX, tailY), end = Offset(tipX, tipY),
-        strokeWidth = g.rDial * 0.013f)
-    // Teardrop counterweight
-    val cwX = g.center.x - tailLen * 0.7f * cosA
-    val cwY = g.center.y - tailLen * 0.7f * sinA
-    drawCircle(color = DialPalette.SecondHand, radius = g.rDial * 0.024f, center = Offset(cwX, cwY))
+    drawLine(
+        color = DialPalette.HandFrame,
+        start = g.center,
+        end = Offset(tailX, tailY),
+        strokeWidth = g.rDial * 0.020f
+    )
+    drawLine(
+        color = DialPalette.Hand,
+        start = g.center,
+        end = Offset(tailX, tailY),
+        strokeWidth = g.rDial * 0.014f
+    )
+    // Red dot at the very tail
+    drawCircle(
+        color = DialPalette.SecondHand,
+        radius = g.rDial * 0.014f,
+        center = Offset(tailX, tailY)
+    )
 }
 
 private fun DrawScope.drawHandHub(g: DialGeom) {
