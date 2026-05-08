@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stylised Breitling-style winged anchor (vector). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="60dp"
+    android:viewportWidth="120"
+    android:viewportHeight="60"
+    android:tint="#F0EFEA">
+    <!-- Left wing (cluster of small arcs) -->
+    <path
+        android:fillColor="#F0EFEA"
+        android:pathData="M5,30 C20,18 40,18 55,28 C40,28 25,28 5,30 Z" />
+    <!-- Right wing -->
+    <path
+        android:fillColor="#F0EFEA"
+        android:pathData="M115,30 C100,18 80,18 65,28 C80,28 95,28 115,30 Z" />
+    <!-- Anchor stem -->
+    <path
+        android:fillColor="#F0EFEA"
+        android:pathData="M58,22 L62,22 L62,46 L58,46 Z" />
+    <!-- Anchor crossbar -->
+    <path
+        android:fillColor="#F0EFEA"
+        android:pathData="M50,28 L70,28 L70,30 L50,30 Z" />
+    <!-- Anchor flukes -->
+    <path
+        android:fillColor="#F0EFEA"
+        android:pathData="M48,46 C48,52 54,55 60,55 C66,55 72,52 72,46 L70,46 C70,50 66,53 60,53 C54,53 50,50 50,46 Z" />
+</vector>

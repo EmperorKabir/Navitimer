@@ -1,0 +1,33 @@
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+Division,Outer scale number,/,Inner scale number (aligned to outer scale number),=,Outer scale number that is above the inner scale value of 10
+Alternatively,Inner scale number,/,Outer scale number (aligned to outer scale number),=,Inner scale number that is below the outer scale value of 10
+,,,,,
+Multiplication,Align outer scale value of 10 to inner scale multiplier,,,,
+,"Now, any outer scale number ",x,preset multiplier,=,Inner scale number aligned to that outer scale number
+Alternatively,Align inner scale value of 10 to outer scale multiplier,,,,
+,"Now, any inner scale number ",x,preset multiplier,=,Outer scale number aligned to that Inner scale number
+,,,,,
+,,,,,
+,,,,,
+Speed,Outer scale (miles),aligned to,Inner scale (minutes),=,Outer scale above mph (at 12 o'clock) mph
+Time,Outer scale above mph (at 12 o'clock) mph,aligned to,Outer scale (miles),=,Inner scale (minutes)
+Simplification,"MPH reading -> Outer scale is miles, inner is time",,,,
+,,,,,
+Land (statute) miles to KM,Align number to red marker above STAT (top of the 3),->,Read off KM marker,,
+Nautical miles to KM,As above but lower arrow above NAUT,,,,
+,,,,,
+Note,There are red markers on 36 on both outer and inner bezel,,,,
+,This is considered significant as there are 60 seconds in a minute and 60 minutes in an hour,,,,
+,60 X 60 = 3600 (36),,,,
+,e.g. To convert 4 hours into minutes and seconds. align 40 against unit index of 10,,,,
+,"Against 60, you see 24 (240 minutes)",,,,
+,"Against 36, you see 14.4 (14,400 seconds)",,,,
+,Both inner and outer have the markers as you have the choice to invert your calculations as per the division and multiplication,,,,
