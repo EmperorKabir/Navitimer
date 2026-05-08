@@ -52,6 +52,20 @@ object DialMath {
         return a
     }
 
+    /**
+     * Rotational offset that places the scale value 60 at 12 o'clock on the
+     * dial — matching the real Navitimer's MPH index position.
+     *
+     * Drawing code uses `drawAngleDeg(v) = valueToAngle(v) - SCALE_TOP_OFFSET`
+     * to translate a scale-value to screen-degrees (0° = +x, 90° = +y in
+     * Compose Canvas; we further subtract 90° elsewhere to put screen-0 at
+     * 12 o'clock — see dial drawing).
+     */
+    val SCALE_TOP_OFFSET: Double = wrap360(360.0 * kotlin.math.log10(60.0 / 10.0) + 90.0)
+
+    /** Screen-space angle (degrees clockwise from 3 o'clock) for a scale value. */
+    fun drawAngleDeg(value: Double): Double = wrap360(valueToAngle(value) - SCALE_TOP_OFFSET)
+
     /** Position (degrees clockwise from "10") of a scale value V in [10, 100). */
     fun valueToAngle(value: Double): Double {
         require(value > 0) { "value must be positive" }

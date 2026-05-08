@@ -125,6 +125,14 @@ private fun LiveHandsLayer(modifier: Modifier) {
 private fun currentLocalDateTime(): LocalDateTime =
     Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
+/**
+ * Numerals to print on each slide-rule scale, matching the real Navitimer:
+ * every integer in 10..20, then 22, 24, 25, then every 5 from 30..95.
+ * Other integers in 10..99 still get a tick (just no numeral).
+ */
+private val LABELED_NUMERALS: Set<Int> = (10..20).toSet() +
+    setOf(22, 24, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95)
+
 // =============================================================== geometry
 
 private data class DialGeom(
@@ -225,8 +233,8 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
 
     // Numerals + ticks: every integer 10..99
     for (v in 10..99) {
-        val angle = DialMath.valueToAngle(v.toDouble())
-        val rad = (angle - 90.0) * PI / 180.0
+        val angle = DialMath.drawAngleDeg(v.toDouble())
+        val rad = angle * PI / 180.0
         val isMajor = v % 5 == 0
         val tickInner = ringMid + ringWidth * (if (isMajor) -0.42f else -0.28f)
         val tickOuter = ringMid + ringWidth * 0.42f
@@ -240,23 +248,23 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
             end = Offset(ex, ey),
             strokeWidth = if (isMajor) 1.6f else 0.7f
         )
-        if (isMajor) {
+        if (v in LABELED_NUMERALS) {
             val labelR = ringMid + ringWidth * 0.05f
             val isRed = (v == 60 || v == 10 || v == 36)
             drawScaleNumeralUpright(
                 measurer = measurer,
                 text = v.toString(),
-                angleDegFromTop = (angle - 90).toFloat(),
+                angleDegFromTop = angle.toFloat(),
                 radius = labelR,
                 center = g.center,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
-                sizeSp = (g.rOuter * 0.06f / density).sp
+                sizeSp = (g.rOuter * (if (v % 5 == 0) 0.058f else 0.040f) / density).sp
             )
         }
     }
     // Red triangle indices on outer bezel at 10 / 36 / 60
     listOf(10.0, 36.0, 60.0).forEach { v ->
-        val angle = DialMath.valueToAngle(v) - 90.0
+        val angle = DialMath.drawAngleDeg(v)
         drawTriangleAtAngle(
             center = g.center,
             angleDeg = angle.toFloat(),
@@ -281,7 +289,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
 
     // Numerals + ticks: every integer 10..99
     for (v in 10..99) {
-        val angle = DialMath.valueToAngle(v.toDouble()) - 90.0
+        val angle = DialMath.drawAngleDeg(v.toDouble())
         val rad = angle * PI / 180.0
         val isMajor = v % 5 == 0
         val tickInner = midR - width * 0.42f
@@ -296,7 +304,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
             end = Offset(ex, ey),
             strokeWidth = if (isMajor) 1.4f else 0.6f
         )
-        if (isMajor) {
+        if (v in LABELED_NUMERALS) {
             val isRed = (v == 60 || v == 10 || v == 36)
             drawScaleNumeralUpright(
                 measurer = measurer,
@@ -305,7 +313,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
                 radius = midR,
                 center = g.center,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
-                sizeSp = (g.rOuter * 0.05f / density).sp
+                sizeSp = (g.rOuter * (if (v % 5 == 0) 0.048f else 0.034f) / density).sp
             )
         }
     }
@@ -314,7 +322,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     val markerLabelR = midR - width * 0.32f
     Markers.all.filter { it.side == ScaleSide.INNER && it.style != MarkerStyle.RED_NUMERAL }
         .forEach { m ->
-        val angle = DialMath.valueToAngle(m.scaleValue) - 90.0
+        val angle = DialMath.drawAngleDeg(m.scaleValue)
         if (m.style == MarkerStyle.TRIANGLE_OUTWARD) {
             drawTriangleAtAngle(
                 center = g.center,

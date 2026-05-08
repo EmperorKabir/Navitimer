@@ -27,19 +27,16 @@ import com.navitimerguide.controls.AngleSlider
 import com.navitimerguide.controls.Presets
 import com.navitimerguide.dial.WatchDial
 import com.navitimerguide.dial.bezelDragRotation
-import com.navitimerguide.equations.IntroCard
-import com.navitimerguide.equations.cards.DivisionCard
-import com.navitimerguide.equations.cards.MultiplicationCard
-import com.navitimerguide.equations.cards.NautKmCard
-import com.navitimerguide.equations.cards.SpeedTimeDistanceCard
-import com.navitimerguide.equations.cards.StatKmCard
-import com.navitimerguide.equations.cards.TimeUnitsCard
+import com.navitimerguide.equations.BezelInputs
+import com.navitimerguide.equations.FloatingEquations
 import com.navitimerguide.viewmodel.DialViewModel
 
 @Composable
 fun NavitimerApp() {
     val vm: DialViewModel = viewModel()
     val rotation by vm.rotationDegrees.collectAsStateWithLifecycle()
+    val outerText by vm.outerInput.collectAsStateWithLifecycle()
+    val innerText by vm.innerInput.collectAsStateWithLifecycle()
 
     Scaffold { innerPadding ->
         BoxWithConstraints(
@@ -61,10 +58,20 @@ fun NavitimerApp() {
                         modifier = Modifier
                             .weight(1f)
                             .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        IntroCard()
-                        EquationCards(vm = vm)
+                        BezelInputs(
+                            outer = outerText,
+                            inner = innerText,
+                            onOuterChange = vm::setOuterText,
+                            onInnerChange = vm::setInnerText,
+                            onCommit = vm::commitInputs
+                        )
+                        FloatingEquations(
+                            rotationDegrees = rotation,
+                            outer = outerText,
+                            inner = innerText
+                        )
                     }
                 }
             } else {
@@ -73,17 +80,26 @@ fun NavitimerApp() {
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     DialColumn(
                         modifier = Modifier.fillMaxWidth(),
                         rotation = rotation,
                         vm = vm
                     )
-                    Spacer(Modifier.size(10.dp))
-                    IntroCard()
-                    Spacer(Modifier.size(8.dp))
-                    EquationCards(vm = vm)
+                    BezelInputs(
+                        outer = outerText,
+                        inner = innerText,
+                        onOuterChange = vm::setOuterText,
+                        onInnerChange = vm::setInnerText,
+                        onCommit = vm::commitInputs
+                    )
+                    FloatingEquations(
+                        rotationDegrees = rotation,
+                        outer = outerText,
+                        inner = innerText
+                    )
                 }
             }
         }
@@ -107,14 +123,4 @@ private fun DialColumn(modifier: Modifier, rotation: Double, vm: DialViewModel) 
         Spacer(Modifier.size(8.dp))
         AngleSlider(angle = rotation, onAngleChange = vm::setRotation, modifier = Modifier.fillMaxWidth())
     }
-}
-
-@Composable
-private fun EquationCards(vm: DialViewModel) {
-    DivisionCard(onSnapAlign = vm::snapAlign, onSetMultiplier = vm::setMultiplier)
-    MultiplicationCard(onSetMultiplier = vm::setMultiplier)
-    SpeedTimeDistanceCard(onSnapAlign = vm::snapAlign)
-    StatKmCard(onSnapAlign = vm::snapAlign)
-    NautKmCard(onSnapAlign = vm::snapAlign)
-    TimeUnitsCard(onSetMultiplier = vm::setMultiplier)
 }
