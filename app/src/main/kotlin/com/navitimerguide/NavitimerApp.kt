@@ -138,18 +138,19 @@ private fun DialColumn(
                 chronoMillisProvider = chronoMillisProvider,
                 modifier = Modifier.fillMaxSize()
             )
-            // Top pusher tap target — start / stop
+            // Tap targets aligned with the new ANGLED pusher positions:
+            //   top pusher cap centre ≈ (0.91 side, 0.26 side)  — 2 o'clock
+            //   bot pusher cap centre ≈ (0.91 side, 0.74 side)  — 4 o'clock
             Box(modifier = Modifier
-                .offset(x = side * 0.90f, y = side * 0.27f)
-                .size(width = side * 0.12f, height = side * 0.10f)
+                .offset(x = side * 0.85f, y = side * 0.20f)
+                .size(width = side * 0.13f, height = side * 0.13f)
                 .clickable {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     vm.chronoStartStop()
                 })
-            // Bottom pusher tap target — reset
             Box(modifier = Modifier
-                .offset(x = side * 0.90f, y = side * 0.61f)
-                .size(width = side * 0.12f, height = side * 0.10f)
+                .offset(x = side * 0.85f, y = side * 0.67f)
+                .size(width = side * 0.13f, height = side * 0.13f)
                 .clickable {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     vm.chronoReset()

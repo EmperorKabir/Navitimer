@@ -144,13 +144,62 @@ private data class DialGeom(
     val rDial: Float
 )
 
+/*
+ * ----------------------------------------------------------------------
+ *  Watch-face proportion reference (all values relative to rOuter, the
+ *  outermost chrome bezel edge). Derived by measuring the Breitling
+ *  Navitimer B01 Chronograph 46 photos in research/.
+ * ----------------------------------------------------------------------
+ *
+ *   Concentric rings (radius from centre):
+ *     0.00 .. 0.71   green sunburst dial
+ *     0.71 .. 0.84   inner FIXED slide-rule scale (the rehaut)
+ *     0.84 .. 0.86   thin step / shadow between rings
+ *     0.86 .. 0.99   rotating bezel insert (slide-rule numerals)
+ *     0.99 .. 1.00   chrome coin-edge teeth
+ *
+ *   Hour indices (within the green dial):
+ *     inner end  ≈ 0.43 r  (just outside brand wordmark + sub-dial cores)
+ *     outer end  ≈ 0.69 r  (right at the inner edge of the chapter ring)
+ *     width      ≈ 0.018 r
+ *     skipped at 3 / 6 / 9 (sub-dial cores)
+ *
+ *   Sub-dials (inside the dial):
+ *     centre offset from dial centre  ≈ 0.30 r
+ *     sub-dial radius                ≈ 0.155 r
+ *
+ *   Date window (inside the 6 o'clock sub-dial):
+ *     width   ≈ 0.030 r   (taller than wide — portrait aperture, ~0.6:1)
+ *     height  ≈ 0.050 r
+ *     centre below sub-dial centre by 0.07 r
+ *     bg = black; text = white
+ *
+ *   Brand stack (centred on dial X axis, Y from dial centre, NEGATIVE = up):
+ *     Wings logo centre   ≈ -0.21 r   (visual scale 0.085 r tall, 0.18 r wide)
+ *     BREITLING centre    ≈ -0.090 r   (font ≈ 0.065 r tall, bold + spaced)
+ *     1884 centre         ≈ -0.030 r   (font ≈ 0.028 r tall, medium, very spaced)
+ *     NAVITIMER centre    ≈ +0.010 r   (font ≈ 0.040 r tall, semi-bold)
+ *     SWISS MADE centre   ≈ +0.59 r   (font ≈ 0.024 r tall, just above date sub-dial)
+ *
+ *   Crown (3 o'clock):
+ *     body rectangle: 0.09 r wide × 0.20 r tall, anchored at rOuter on right
+ *     cap rectangle:  0.08 r wide × 0.18 r tall, sits OUTSIDE the body
+ *     reeded grip stripes on body + cap face
+ *
+ *   Pushers (top: 2 o'clock = 60° from N; bottom: 4 o'clock = 120° from N):
+ *     pusher axis is RADIAL (perpendicular to the case rim at that angle)
+ *     shaft length ≈ 0.06 r, cap depth ≈ 0.05 r, cap face ≈ 0.05 r wide × 0.11 r tall
+ *     reeded grip stripes parallel to the cap's long axis
+ * ----------------------------------------------------------------------
+ */
 private fun DrawScope.geom(): DialGeom {
     val w = size.width
     val h = size.height
     val cx = w / 2f
     val cy = h / 2f
-    // Shrink the watch a touch so the crown + pushers fit inside the canvas.
-    val rOuter = (minOf(w, h) / 2f) * 0.92f
+    // Shrink the watch a touch so the crown + angled pushers fit inside the
+    // canvas (they protrude about 9% of r past the case at 2/3/4 o'clock).
+    val rOuter = (minOf(w, h) / 2f) * 0.88f
     val rBezelOuter = rOuter * 0.99f
     val rBezelInner = rOuter * 0.86f
     val rChapterOuter = rOuter * 0.84f
@@ -451,31 +500,31 @@ private fun DrawScope.drawDialHighlight(g: DialGeom) {
 // =============================================================== brand marks + winged anchor
 
 private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer) {
-    val anchorY = g.center.y - g.rDial * 0.30f
-    val anchorScale = g.rDial * 0.12f
-    drawWingedAnchor(Offset(g.center.x, anchorY), anchorScale)
+    // Logo above the BREITLING wordmark.
+    val logoY = g.center.y - g.rDial * 0.30f
+    val logoScale = g.rDial * 0.085f       // half-width = 0.085, total span ≈ 0.30
+    drawBreitlingWings(Offset(g.center.x, logoY), logoScale)
 
-    // Stack tightly: anchor → BREITLING → 1884 → NAVITIMER, mirroring the photo.
     drawCenteredText(measurer, "BREITLING",
-        TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.092f / density).sp,
-            fontWeight = FontWeight.Bold, letterSpacing = (g.rDial * 0.008f / density).sp),
-        Offset(g.center.x, g.center.y - g.rDial * 0.13f))
+        TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.090f / density).sp,
+            fontWeight = FontWeight.Bold, letterSpacing = (g.rDial * 0.010f / density).sp),
+        Offset(g.center.x, g.center.y - g.rDial * 0.12f))
 
     drawCenteredText(measurer, "1884",
         TextStyle(color = DialPalette.Numeral.copy(alpha = 0.9f),
             fontSize = (g.rDial * 0.040f / density).sp, fontWeight = FontWeight.Medium,
-            letterSpacing = (g.rDial * 0.014f / density).sp),
-        Offset(g.center.x, g.center.y - g.rDial * 0.045f))
+            letterSpacing = (g.rDial * 0.018f / density).sp),
+        Offset(g.center.x, g.center.y - g.rDial * 0.040f))
 
     drawCenteredText(measurer, "NAVITIMER",
-        TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.056f / density).sp,
-            fontWeight = FontWeight.SemiBold, letterSpacing = (g.rDial * 0.008f / density).sp),
-        Offset(g.center.x, g.center.y + g.rDial * 0.012f))
+        TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.058f / density).sp,
+            fontWeight = FontWeight.SemiBold, letterSpacing = (g.rDial * 0.010f / density).sp),
+        Offset(g.center.x, g.center.y + g.rDial * 0.018f))
 
     drawCenteredText(measurer, "SWISS  MADE",
         TextStyle(color = DialPalette.Numeral.copy(alpha = 0.9f),
             fontSize = (g.rDial * 0.034f / density).sp, fontWeight = FontWeight.Medium,
-            letterSpacing = (g.rDial * 0.006f / density).sp),
+            letterSpacing = (g.rDial * 0.008f / density).sp),
         Offset(g.center.x, g.center.y + g.rDial * 0.83f))
 }
 
@@ -487,56 +536,78 @@ private fun DrawScope.drawCenteredText(
         topLeft = Offset(centerTopLeft.x - l.size.width / 2f, centerTopLeft.y))
 }
 
-private fun DrawScope.drawWingedAnchor(c: Offset, scale: Float) {
-    val color = DialPalette.Numeral.copy(alpha = 0.95f)
-    val strokeW = scale * 0.06f
+/**
+ * The Breitling "Wings" logo as printed on the modern Navitimer dial.
+ * NO anchor body — just two wing lobes spreading outward, with a wavy
+ * scroll line beneath them. Total span ≈ 1.6 × scale wide, ≈ 0.5 ×
+ * scale tall.
+ */
+private fun DrawScope.drawBreitlingWings(c: Offset, scale: Float) {
+    val color = DialPalette.Numeral
+    val negative = DialPalette.DialGreenSpokeDark   // for "subtracted" feather grooves
+    val strokeW = scale * 0.05f
 
-    // Feathered wings: four cubic-curve strokes per side fanning out and up.
+    // Solid wing lobes — left and right.
     for (side in listOf(-1f, 1f)) {
-        for (k in 0..3) {
-            val tip = scale * (1.55f - k * 0.06f)
-            val lift = scale * (0.04f + k * 0.10f)
-            val startX = c.x + side * scale * 0.18f
-            val startY = c.y + scale * 0.02f
-            val endX = c.x + side * tip
-            val endY = c.y - lift
-            val midX1 = c.x + side * scale * 0.55f
-            val midY1 = c.y - lift - scale * 0.06f
-            val midX2 = c.x + side * scale * 1.05f
-            val midY2 = c.y - lift
-            val path = Path().apply {
-                moveTo(startX, startY)
-                cubicTo(midX1, midY1, midX2, midY2, endX, endY)
+        val wing = Path().apply {
+            // Start near the centre, slightly below the meeting point.
+            moveTo(c.x + side * scale * 0.04f, c.y + scale * 0.02f)
+            // Up and out — "leading edge" arc.
+            cubicTo(
+                c.x + side * scale * 0.55f, c.y - scale * 0.32f,
+                c.x + side * scale * 1.30f, c.y - scale * 0.20f,
+                c.x + side * scale * 1.55f, c.y - scale * 0.02f
+            )
+            // Tip curls slightly downward.
+            cubicTo(
+                c.x + side * scale * 1.55f, c.y + scale * 0.05f,
+                c.x + side * scale * 1.40f, c.y + scale * 0.08f,
+                c.x + side * scale * 1.20f, c.y + scale * 0.06f
+            )
+            // Bottom edge sweeping back to the centre.
+            cubicTo(
+                c.x + side * scale * 0.80f, c.y + scale * 0.10f,
+                c.x + side * scale * 0.30f, c.y + scale * 0.10f,
+                c.x + side * scale * 0.04f, c.y + scale * 0.06f
+            )
+            close()
+        }
+        drawPath(wing, color = color)
+        drawPath(wing, color = negative.copy(alpha = 0.6f), style = Stroke(width = strokeW * 0.4f))
+
+        // Three "feather" grooves carved into each wing — drawn in dial-bg
+        // colour so they read as negative space inside the white wing.
+        for (k in 0..2) {
+            val featherPath = Path().apply {
+                val sx = c.x + side * scale * 0.20f
+                val sy = c.y - scale * (0.03f - k * 0.03f)
+                moveTo(sx, sy)
+                cubicTo(
+                    c.x + side * scale * (0.55f + k * 0.05f), c.y - scale * (0.20f - k * 0.04f),
+                    c.x + side * scale * (1.00f + k * 0.05f), c.y - scale * (0.13f - k * 0.04f),
+                    c.x + side * scale * (1.25f - k * 0.05f), c.y - scale * (0.02f - k * 0.04f)
+                )
             }
-            drawPath(path, color = color, style = Stroke(width = strokeW * (1.0f - k * 0.10f)))
+            drawPath(featherPath, color = negative, style = Stroke(width = strokeW * 0.55f))
         }
     }
 
-    // Anchor body — ring (shackle), stem, crossbar (stock), curved fluke base.
-    drawCircle(color = color, center = Offset(c.x, c.y - scale * 0.32f),
-        radius = scale * 0.11f, style = Stroke(width = strokeW))
-    drawLine(color = color,
-        start = Offset(c.x, c.y - scale * 0.21f),
-        end = Offset(c.x, c.y + scale * 0.95f),
-        strokeWidth = strokeW)
-    drawLine(color = color,
-        start = Offset(c.x - scale * 0.46f, c.y + scale * 0.06f),
-        end = Offset(c.x + scale * 0.46f, c.y + scale * 0.06f),
-        strokeWidth = strokeW * 0.85f)
-    val flukePath = Path().apply {
-        moveTo(c.x - scale * 0.50f, c.y + scale * 0.50f)
-        cubicTo(
-            c.x - scale * 0.55f, c.y + scale * 0.95f,
-            c.x - scale * 0.20f, c.y + scale * 1.05f,
-            c.x, c.y + scale * 1.02f
-        )
-        cubicTo(
-            c.x + scale * 0.20f, c.y + scale * 1.05f,
-            c.x + scale * 0.55f, c.y + scale * 0.95f,
-            c.x + scale * 0.50f, c.y + scale * 0.50f
-        )
+    // Wavy scroll underline — three arched humps below the wings.
+    val waveY = c.y + scale * 0.18f
+    val waveStartX = c.x - scale * 1.30f
+    val waveEndX = c.x + scale * 1.30f
+    val humps = 5
+    val wavePath = Path().apply {
+        moveTo(waveStartX, waveY)
+        for (i in 0 until humps) {
+            val x0 = waveStartX + (waveEndX - waveStartX) * i / humps
+            val x1 = waveStartX + (waveEndX - waveStartX) * (i + 1) / humps
+            val cxh = (x0 + x1) / 2f
+            val cyh = waveY - scale * 0.07f
+            quadraticBezierTo(cxh, cyh, x1, waveY)
+        }
     }
-    drawPath(flukePath, color = color, style = Stroke(width = strokeW * 0.85f))
+    drawPath(wavePath, color = color, style = Stroke(width = strokeW * 0.65f))
 }
 
 // =============================================================== sub-dials
@@ -563,22 +634,20 @@ private fun DrawScope.drawSubDialFaces(g: DialGeom, measurer: TextMeasurer) {
         ticks = 12, majorEvery = 3, measurer = measurer,
         ringNumbers = listOf(3 to "3", 9 to "9", 12 to "12")
     )
-    // Date window inside the 12-hr sub-dial, at the 6 o'clock position.
-    // Real watch shows white numerals on a black wheel through a slim
-    // chrome-framed window — match that.
+    // Date window inside the 12-hr sub-dial: a PORTRAIT aperture (taller
+    // than wide) showing white numerals on the black date wheel, framed
+    // by a thin chrome rim. Matches the slim vertical slot in the photo.
     val now = currentLocalDateTime()
-    val dateBoxW = subR * 0.55f
-    val dateBoxH = subR * 0.30f
-    val dateTopLeft = Offset(hrCenter.x - dateBoxW / 2f, hrCenter.y + subR * 0.36f)
-    // Chrome frame
+    val dateBoxW = subR * 0.42f
+    val dateBoxH = subR * 0.50f
+    val dateTopLeft = Offset(hrCenter.x - dateBoxW / 2f, hrCenter.y + subR * 0.30f)
     drawRect(color = DialPalette.HandFrame,
         topLeft = Offset(dateTopLeft.x - 1.4f, dateTopLeft.y - 1.4f),
         size = Size(dateBoxW + 2.8f, dateBoxH + 2.8f))
-    // Black date-wheel background
     drawRect(color = Color(0xFF0A0A0A), topLeft = dateTopLeft, size = Size(dateBoxW, dateBoxH))
     val l = measurer.measure(
         androidx.compose.ui.text.AnnotatedString(now.dayOfMonth.toString()),
-        TextStyle(color = Color.White, fontSize = (subR * 0.36f / density).sp,
+        TextStyle(color = Color.White, fontSize = (subR * 0.42f / density).sp,
             fontWeight = FontWeight.SemiBold)
     )
     drawText(textLayoutResult = l,
@@ -681,9 +750,12 @@ private fun DrawScope.drawDialHourIndices(g: DialGeom) {
         val rad = angle * PI / 180.0
         val cosA = cos(rad).toFloat()
         val sinA = sin(rad).toFloat()
+        // Per the photo: indices reach almost to the inner edge of the
+        // chapter ring (~0.95 r), starting just outside the brand text /
+        // sub-dial cores at ~0.62 r. About twice as long as before.
         val rIn = g.rDial * 0.62f
-        val rOut = g.rDial * 0.76f
-        val width = g.rDial * 0.026f
+        val rOut = g.rDial * 0.95f
+        val width = g.rDial * 0.022f
         fun batonPath(w: Float): Path {
             val perpX = (-sinA) * w
             val perpY = cosA * w
@@ -788,81 +860,107 @@ private fun DrawScope.drawBatonHand(
 // =============================================================== crown + pushers (decorative)
 
 private fun DrawScope.drawCrownAndPushers(g: DialGeom) {
-    val r = g.rOuter
-    drawCrown(g, baseX = g.center.x + r * 1.00f, centerY = g.center.y - r * 0.04f, scale = r)
-    drawPusher(g, baseX = g.center.x + r * 0.96f, centerY = g.center.y - r * 0.36f, scale = r)
-    drawPusher(g, baseX = g.center.x + r * 0.96f, centerY = g.center.y + r * 0.30f, scale = r)
+    drawAngledChronoControl(g, angleFromNorthDeg = 60.0,                  // 2 o'clock — top pusher
+        shaftLen = g.rOuter * 0.060f, shaftHalfW = g.rOuter * 0.025f,
+        capDepth = g.rOuter * 0.055f, capHalfW = g.rOuter * 0.060f,
+        reeded = true)
+    drawAngledChronoControl(g, angleFromNorthDeg = 120.0,                 // 4 o'clock — bottom pusher
+        shaftLen = g.rOuter * 0.060f, shaftHalfW = g.rOuter * 0.025f,
+        capDepth = g.rOuter * 0.055f, capHalfW = g.rOuter * 0.060f,
+        reeded = true)
+    drawAngledChronoControl(g, angleFromNorthDeg = 90.0,                  // 3 o'clock — crown
+        shaftLen = g.rOuter * 0.070f, shaftHalfW = g.rOuter * 0.038f,
+        capDepth = g.rOuter * 0.075f, capHalfW = g.rOuter * 0.085f,
+        reeded = true)
 }
 
 /**
- * Crown drawn as a horizontal cylinder protruding from the case to the right.
- *  - body: rectangle with 8 vertical reeded stripes (the grip)
- *  - cap: chrome circle on the outer end with a thin "B" letter
+ * One chronograph control (crown or pusher) drawn at an arbitrary clock
+ * position. Its axis is RADIAL — perpendicular to the case rim at that
+ * angle — so top/bottom pushers tilt up-right and down-right just like
+ * the real watch.
+ *
+ *  - The shaft is a parallelogram from the case rim outward along the
+ *    radial direction.
+ *  - The cap is a rectangle perpendicular to the radial direction —
+ *    appears as a vertical-ish rectangle from face-on. The cap is wider
+ *    than its depth (matching the photo's mushroom-cap pushers).
+ *  - Reeded grip lines run along the cap's long axis (perpendicular to
+ *    the radial), giving the brushed-steel look.
  */
-private fun DrawScope.drawCrown(g: DialGeom, baseX: Float, centerY: Float, scale: Float) {
-    val bodyW = scale * 0.090f
-    val bodyH = scale * 0.20f
-    // Body
-    drawRect(color = DialPalette.SteelLight,
-        topLeft = Offset(baseX, centerY - bodyH / 2f),
-        size = Size(bodyW, bodyH))
-    // Top + bottom rim shadow
-    drawLine(color = DialPalette.SteelGroove,
-        start = Offset(baseX, centerY - bodyH / 2f),
-        end = Offset(baseX + bodyW, centerY - bodyH / 2f),
-        strokeWidth = 1.0f)
-    drawLine(color = DialPalette.SteelGroove,
-        start = Offset(baseX, centerY + bodyH / 2f),
-        end = Offset(baseX + bodyW, centerY + bodyH / 2f),
-        strokeWidth = 1.0f)
-    // Reeded grip stripes
-    val stripes = 8
-    for (i in 1 until stripes) {
-        val x = baseX + bodyW * i / stripes
-        drawLine(color = DialPalette.SteelGroove,
-            start = Offset(x, centerY - bodyH * 0.46f),
-            end = Offset(x, centerY + bodyH * 0.46f),
-            strokeWidth = 1.4f)
-    }
-    // Cap on the outer end
-    val capR = scale * 0.085f
-    val capCx = baseX + bodyW + capR * 0.55f
-    drawCircle(color = DialPalette.SteelLight, radius = capR, center = Offset(capCx, centerY))
-    drawCircle(color = DialPalette.SteelMid, radius = capR, center = Offset(capCx, centerY),
-        style = Stroke(width = 1.2f))
-    // Reeded cap edge (small radial ticks)
-    val capEdgeTicks = 24
-    for (i in 0 until capEdgeTicks) {
-        val a = i * (2.0 * PI / capEdgeTicks)
-        val rIn = capR * 0.85f
-        val rOut = capR * 0.97f
-        drawLine(color = DialPalette.SteelMid,
-            start = Offset(capCx + (rIn * cos(a)).toFloat(), centerY + (rIn * sin(a)).toFloat()),
-            end = Offset(capCx + (rOut * cos(a)).toFloat(), centerY + (rOut * sin(a)).toFloat()),
-            strokeWidth = 0.7f)
-    }
-    // Tiny "B" mark in the centre of the cap
-    drawCircle(color = DialPalette.SteelGroove, radius = capR * 0.20f, center = Offset(capCx, centerY))
-}
+private fun DrawScope.drawAngledChronoControl(
+    g: DialGeom,
+    angleFromNorthDeg: Double,
+    shaftLen: Float,
+    shaftHalfW: Float,
+    capDepth: Float,
+    capHalfW: Float,
+    reeded: Boolean
+) {
+    // Convert "degrees clockwise from 12 o'clock" → screen angle (0 = +x).
+    val screenAngleDeg = angleFromNorthDeg - 90.0
+    val rad = screenAngleDeg * PI / 180.0
+    val nx = cos(rad).toFloat()   // radial-outward x
+    val ny = sin(rad).toFloat()   // radial-outward y
+    val px = -ny                  // perpendicular-to-radial x
+    val py = nx                   // perpendicular-to-radial y
 
-/**
- * Mushroom-style chronograph pusher: rectangular shaft inside the case + a
- * round chrome cap on the outer end.
- */
-private fun DrawScope.drawPusher(g: DialGeom, baseX: Float, centerY: Float, scale: Float) {
-    val shaftW = scale * 0.060f
-    val shaftH = scale * 0.075f
-    drawRect(color = DialPalette.SteelMid,
-        topLeft = Offset(baseX, centerY - shaftH / 2f),
-        size = Size(shaftW, shaftH))
-    val capR = scale * 0.060f
-    val capCx = baseX + shaftW + capR * 0.5f
-    drawCircle(color = DialPalette.SteelLight, radius = capR, center = Offset(capCx, centerY))
-    drawCircle(color = DialPalette.SteelMid, radius = capR, center = Offset(capCx, centerY),
-        style = Stroke(width = 1.0f))
-    // Subtle highlight
-    drawCircle(color = DialPalette.SteelLight.copy(alpha = 0.85f),
-        radius = capR * 0.55f, center = Offset(capCx - capR * 0.18f, centerY - capR * 0.18f))
+    // Anchor on the case rim (slightly inside rOuter so the shaft visibly
+    // emerges from the bezel, not the air beyond).
+    val rRim = g.rOuter * 0.985f
+    val ax = g.center.x + rRim * nx
+    val ay = g.center.y + rRim * ny
+
+    // Far end of the shaft (where the cap base sits).
+    val sx = ax + nx * shaftLen
+    val sy = ay + ny * shaftLen
+
+    // Far face of the cap.
+    val fx = sx + nx * capDepth
+    val fy = sy + ny * capDepth
+
+    // Shaft as a parallelogram.
+    val shaftPath = Path().apply {
+        moveTo(ax + px * shaftHalfW, ay + py * shaftHalfW)
+        lineTo(ax - px * shaftHalfW, ay - py * shaftHalfW)
+        lineTo(sx - px * shaftHalfW, sy - py * shaftHalfW)
+        lineTo(sx + px * shaftHalfW, sy + py * shaftHalfW)
+        close()
+    }
+    drawPath(shaftPath, color = DialPalette.SteelMid)
+    drawPath(shaftPath, color = DialPalette.SteelGroove, style = Stroke(width = 0.8f))
+
+    // Cap as a rectangle perpendicular to the axis (taller than wide on
+    // the screen because capHalfW > capDepth/2 and the long side is along
+    // the perpendicular axis).
+    val capPath = Path().apply {
+        moveTo(sx + px * capHalfW, sy + py * capHalfW)
+        lineTo(sx - px * capHalfW, sy - py * capHalfW)
+        lineTo(fx - px * capHalfW, fy - py * capHalfW)
+        lineTo(fx + px * capHalfW, fy + py * capHalfW)
+        close()
+    }
+    drawPath(capPath, color = DialPalette.SteelLight)
+    drawPath(capPath, color = DialPalette.SteelMid, style = Stroke(width = 1.0f))
+
+    // Reeded grip stripes on the cap face — lines parallel to the radial
+    // axis, evenly spaced across the perpendicular (cap-long) direction.
+    if (reeded) {
+        val numLines = 7
+        for (i in 1..numLines) {
+            val frac = (i.toDouble() / (numLines + 1)) * 2.0 - 1.0   // -1..+1
+            val offX = (px * capHalfW * frac).toFloat()
+            val offY = (py * capHalfW * frac).toFloat()
+            drawLine(
+                color = DialPalette.SteelGroove,
+                start = Offset(sx + offX + nx * capDepth * 0.10f,
+                               sy + offY + ny * capDepth * 0.10f),
+                end = Offset(fx + offX - nx * capDepth * 0.10f,
+                             fy + offY - ny * capDepth * 0.10f),
+                strokeWidth = 1.0f
+            )
+        }
+    }
 }
 
 // =============================================================== text + triangle helpers
