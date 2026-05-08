@@ -3,7 +3,6 @@ package com.navitimerguide.equations
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,16 +19,12 @@ import com.navitimerguide.dial.DialMath
 import kotlin.math.roundToInt
 
 /**
- * Equations panel mirrors the source-of-truth spreadsheet exactly.
- * Each section has:
- *   • a TITLE
- *   • the spreadsheet's RECIPE (how to perform the operation on the bezel)
- *   • the LIVE READING (what the bezel currently shows)
- *
- * The wording is taken from the spreadsheet so the user can read this
- * panel and see the exact instructions for what each bezel alignment is
- * doing. Live numbers come from the current rotation + the user's typed
- * Outer / Inner anchors.
+ * Plain-English equation panel. Each section has:
+ *   • Title (the operation name)
+ *   • A short, friendly explanation that says what the bezel is doing
+ *     in everyday language — no maths jargon and no "Now" word.
+ *   • The live result in a short sentence using the user's typed
+ *     Outer / Inner anchors and the bezel's current rotation.
  */
 @Composable
 fun FloatingEquations(
@@ -41,10 +36,7 @@ fun FloatingEquations(
     val k = DialMath.multiplierFromRotation(rotationDegrees)
     val x = outer.toDoubleOrNull()
     val y = inner.toDoubleOrNull()
-    // Live mph above MPH index (inner-60)
-    val mphReading = DialMath.outerValueAtInner(60.0, rotationDegrees)
-    // Live time-conversion readings: with bezel rotated for "K hours",
-    // outer above inner-60 = K*6 (=> K*60 minutes); above inner-36 = K*3.6 (=> K*3600 seconds)
+    val mph = DialMath.outerValueAtInner(60.0, rotationDegrees)
     val above60 = DialMath.outerValueAtInner(60.0, rotationDegrees)
     val above36 = DialMath.outerValueAtInner(36.0, rotationDegrees)
 
@@ -61,90 +53,96 @@ fun FloatingEquations(
         // ---------------- Division
         Section(
             title = "Division",
-            recipe = listOf(
-                "Outer scale number ÷ Inner scale number (aligned to it) = Outer scale number above inner-10",
-                "Alternatively: Inner number ÷ Outer number = Inner number below outer-10"
-            ),
+            explanation =
+                "Pick a number on the outer ring and turn the bezel so it lines " +
+                "up with a number on the inner ring. The bezel has just done a " +
+                "division for you. To read the answer, look at the position " +
+                "above inner-10.",
             live = if (x != null && y != null && y != 0.0)
-                "Now: ${fmt(x)} ÷ ${fmt(y)} = ${fmt(x / y)}    (= K, the bezel multiplier = ${fmt(k)})"
-            else "Now: type Outer & Inner above to see the live division"
+                "${fmt(x)} on the outer divided by ${fmt(y)} on the inner gives ${fmt(x / y)}."
+            else "Type a number for Outer and Inner above to see the answer."
         )
 
         // ---------------- Multiplication
         Section(
             title = "Multiplication",
-            recipe = listOf(
-                "Align outer-10 to the multiplier on the inner scale.",
-                "Now: any outer number × multiplier = inner number aligned to it.",
-                "Alternatively: align inner-10 to a multiplier on the outer scale; any inner × multiplier = outer aligned."
-            ),
-            live = "Now: multiplier K = ${fmt(k)}" +
-                if (y != null) "    e.g. ${fmt(y)} × ${fmt(k)} = ${fmt(y * k)}" else ""
+            explanation =
+                "The same idea works the other way around. Line up the outer-10 " +
+                "with any number on the inner ring; that number is your " +
+                "multiplier. Whatever you read on the inner ring will appear " +
+                "multiplied on the outer ring above it.",
+            live = if (y != null)
+                "The bezel is set to multiply by ${fmt(k)}, so ${fmt(y)} becomes ${fmt(y * k)}."
+            else "Set a multiplier by sliding the bezel; the live value will appear here."
         )
 
         // ---------------- Speed / Time / Distance
         Section(
-            title = "Speed / Time / Distance",
-            recipe = listOf(
-                "Speed: outer (miles) aligned with inner (minutes) → mph reads above the MPH index (inner red 60 at 12 o'clock).",
-                "Time: outer above MPH aligned with outer (miles) → reads inner (minutes).",
-                "Tip: outer = miles, inner = time, mph reads at red 60."
-            ),
+            title = "Speed (miles per hour)",
+            explanation =
+                "Speed is distance divided by time, scaled to per-hour. Line up " +
+                "your distance in miles on the outer ring with the time you took " +
+                "in minutes on the inner ring. The mph reading is at the red 60 " +
+                "marker at 12 o'clock (the MPH index).",
             live = if (x != null && y != null && y != 0.0)
-                "Now: ${fmt(x)} mi in ${fmt(y)} min → above MPH = ${fmt(mphReading)} mph"
-            else "Now: above MPH (inner 60) = ${fmt(mphReading)}"
+                "Travelling ${fmt(x)} miles in ${fmt(y)} minutes works out to ${fmt(x / y * 60.0)} mph."
+            else "Speed reads ${fmt(mph)} above the MPH index right now."
         )
 
-        // ---------------- Statute miles → km
+        // ---------------- Statute miles ↔ km
         Section(
-            title = "Statute miles ↔ kilometres",
-            recipe = listOf(
-                "Align your number to the red STAT marker (just before the 40 on the inner scale).",
-                "Read the kilometre value at the KM marker. 1 mile = 1.609 km."
-            ),
-            live = if (x != null) "Now: ${fmt(x)} mi = ${fmt(x * DialMath.MILE_TO_KM)} km"
-                   else "Now: 1 mi = 1.609 km"
+            title = "Miles to kilometres",
+            explanation =
+                "A statute mile is 1.609 kilometres. The dial has a small red " +
+                "STAT marker between 35 and 40 on the inner ring, and a KM " +
+                "marker between 60 and 65. Line up your miles value with STAT, " +
+                "then read the kilometres at KM.",
+            live = if (x != null)
+                "${fmt(x)} miles works out to ${fmt(x * DialMath.MILE_TO_KM)} kilometres."
+            else "Conversion factor: 1 mile = 1.609 km."
         )
 
-        // ---------------- Nautical miles → km
+        // ---------------- Nautical miles ↔ km
         Section(
-            title = "Nautical miles ↔ kilometres",
-            recipe = listOf(
-                "Same recipe but using the NAUT marker (lower red arrow, just before the 35).",
-                "1 nautical mile = 1.852 km."
-            ),
-            live = if (x != null) "Now: ${fmt(x)} nm = ${fmt(x * DialMath.NAUT_TO_KM)} km"
-                   else "Now: 1 nm = 1.852 km"
+            title = "Nautical miles to kilometres",
+            explanation =
+                "A nautical mile is 1.852 kilometres — it's used at sea and in " +
+                "the air. The NAUT marker (small red triangle near 35 on the " +
+                "inner ring) plus the KM marker do the same trick as STAT, but " +
+                "for nautical miles instead of land miles.",
+            live = if (x != null)
+                "${fmt(x)} nautical miles works out to ${fmt(x * DialMath.NAUT_TO_KM)} kilometres."
+            else "Conversion factor: 1 nautical mile = 1.852 km."
         )
 
-        // ---------------- Time units via the red 36 marker
+        // ---------------- Hours / Minutes / Seconds
         Section(
-            title = "Hours / Minutes / Seconds (the red 36 marker)",
-            recipe = listOf(
-                "Red markers at 36 on both scales — significant because 60 sec/min × 60 min/hr = 3600.",
-                "Recipe: align your hours value (× 10 on outer) to inner-10.",
-                "Above inner-60 → minutes (×60).  Above inner-36 → seconds (×3600).",
-                "Worked: 4 hours → outer-40 over inner-10 → above 60 = 24 (240 min); above 36 = 14.4 (14,400 sec)."
-            ),
-            live = "Now: K = ${fmt(k)} h" +
-                "    above inner-60 = ${fmt(above60)} (= ${fmt(k * 60)} min)" +
-                "    above inner-36 = ${fmt(above36)} (= ${fmt(k * 3600)} sec)"
+            title = "Hours, minutes and seconds",
+            explanation =
+                "There are 60 minutes in an hour and 60 seconds in a minute, so " +
+                "60 × 60 = 3600 seconds in an hour. The dial has red markers " +
+                "right at 60 and at 36 (which stands for 3600). Line up your " +
+                "hours on the outer ring against inner-10, then read the " +
+                "minutes above inner-60 and the seconds above inner-36 — all in " +
+                "one go.",
+            live = "${fmt(k)} hours is the same as ${fmt(k * 60)} minutes, " +
+                "or ${fmt(k * 3600)} seconds.\n" +
+                "On the dial: above inner-60 reads ${fmt(above60)}, " +
+                "and above inner-36 reads ${fmt(above36)}."
         )
     }
 }
 
 @Composable
-private fun Section(title: String, recipe: List<String>, live: String) {
+private fun Section(title: String, explanation: String, live: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(title, style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.size(2.dp))
-        recipe.forEach { line ->
-            Text("• $line",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Text(explanation,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.size(4.dp))
         Text(live, style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,

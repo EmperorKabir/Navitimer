@@ -209,8 +209,11 @@ private fun DrawScope.geom(): DialGeom {
     // canvas (they protrude about 9% of r past the case at 2/3/4 o'clock).
     val rOuter = (minOf(w, h) / 2f) * 0.88f
     val rBezelOuter = rOuter * 0.99f
-    val rBezelInner = rOuter * 0.86f
-    val rChapterOuter = rOuter * 0.84f
+    // Step gap between rotating bezel and fixed chapter ring tightened from
+    // 0.02 r to 0.005 r so the outer and inner ticks visually almost meet
+    // across a hairline step (per photo image 16).
+    val rBezelInner = rOuter * 0.850f
+    val rChapterOuter = rOuter * 0.845f
     val rChapterInner = rOuter * 0.71f
     val rDial = rChapterInner
     return DialGeom(w, h, cx, cy, Offset(cx, cy), rOuter, rBezelOuter, rBezelInner, rChapterOuter, rChapterInner, rDial)
@@ -316,13 +319,15 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
     val ringMid = (g.rBezelOuter + g.rBezelInner) / 2f
     val ringWidth = g.rBezelOuter - g.rBezelInner
 
-    // Tall ticks span the FULL ring width so their inner end sits at the
-    // bezel's inner edge — this lets the long inner-scale tick at the same
-    // angle visually meet across the thin step (per photo image 9).
-    val tickOuterR = g.rBezelOuter
-    val tallLen = ringWidth                    // full ring height
-    val medLen = ringWidth * 0.65f
-    val shortLen = ringWidth * 0.45f
+    // OUTER bezel layering (per photo image 16, real watch order outside-in):
+    //   numerals at OUTER edge of bezel ring → ticks INWARD of numerals →
+    //   step gap → inner ring.
+    // Numerals occupy the outer ~30% of ring width; ticks occupy the inner ~70%.
+    val numeralR = ringMid + ringWidth * 0.32f          // numeral centre, outer half
+    val tickOuterR = ringMid + ringWidth * 0.10f         // tall-tick outer end, just inward of numerals
+    val tallLen = (tickOuterR - g.rBezelInner)           // ticks reach down to bezel inner edge
+    val medLen = tallLen * 0.62f
+    val shortLen = tallLen * 0.42f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -356,13 +361,12 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
             strokeWidth = sw
         )
         if (isLabelled) {
-            val labelR = ringMid + ringWidth * 0.05f
             val isRed = (intV == 60 || intV == 10 || intV == 36)
             drawScaleNumeralUpright(
                 measurer = measurer,
                 text = intV.toString(),
                 angleDegFromTop = angle.toFloat(),
-                radius = labelR,
+                radius = numeralR,
                 center = g.center,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
                 sizeSp = (g.rOuter * (if (intV % 5 == 0) 0.058f else 0.040f) / density).sp
@@ -390,10 +394,15 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     drawCircle(color = Color(0xFF1F1F1F), radius = g.rChapterOuter, center = g.center,
         style = Stroke(width = width * 0.05f))
 
-    val tickOuterR = g.rChapterOuter
-    val tallLen = width                         // full chapter-ring width
-    val medLen = width * 0.65f
-    val shortLen = width * 0.45f
+    // INNER chapter-ring layering (per the photo's outside-in order):
+    //   step gap → ticks at OUTER half of ring → numerals at INNER half (closest
+    //   to dial centre) → green dial.
+    val numeralR = g.rChapterInner + width * 0.20f       // numeral centre, inner half
+    val tickOuterR = g.rChapterOuter                     // ticks start at chapter outer edge (just under step)
+    val tickInnerEndForLong = numeralR + width * 0.18f   // long ticks stop just before numerals
+    val tallLen = (tickOuterR - tickInnerEndForLong)
+    val medLen = tallLen * 0.62f
+    val shortLen = tallLen * 0.42f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -433,7 +442,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
                 measurer = measurer,
                 text = text,
                 angleDegFromTop = angle.toFloat(),
-                radius = midR,
+                radius = numeralR,
                 center = g.center,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
                 sizeSp = (g.rOuter * (if (intV % 5 == 0) 0.048f else 0.034f) / density).sp
@@ -441,8 +450,11 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         }
     }
 
-    // KM (text only, no triangle), STAT/NAUT (triangle + text)
-    val markerLabelR = midR - width * 0.32f
+    // KM / STAT / NAUT labels — sit slightly OUTWARD of the regular inner
+    // numerals so the red marker text reads near the OUTER edge of the
+    // chapter ring (matching photo image 16 where "STAT" / "NAUT" letters
+    // are on the outer half of the chapter ring).
+    val markerLabelR = numeralR + width * 0.22f
     Markers.all.filter { it.side == ScaleSide.INNER && it.style != MarkerStyle.RED_NUMERAL }
         .forEach { m ->
             val angle = DialMath.drawAngleDeg(m.scaleValue)
@@ -468,8 +480,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         }
 
     // Bracketing red triangles around inner red 10 (the unit index).
-    // Two small triangles, one on each side of the "10" numeral, both
-    // pointing OUTWARD from the dial centre. Per photo image 10.
+    // Per photo image 10.
     val red10Angle = DialMath.drawAngleDeg(10.0)
     listOf(-2.5, +2.5).forEach { delta ->
         drawTriangleAtAngle(
@@ -481,6 +492,20 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
             inward = false
         )
     }
+
+    // Red triangle marker at scale-value 36 on inner — the time-conversion
+    // marker (60 × 60 = 3600). Per photo image 16, three red triangles
+    // appear in a row across NAUT (35) → red-36 → STAT (40); previously I
+    // only had NAUT and STAT, missing the central one.
+    val red36Angle = DialMath.drawAngleDeg(36.0)
+    drawTriangleAtAngle(
+        center = g.center,
+        angleDeg = red36Angle.toFloat(),
+        radius = midR + width * 0.40f,
+        size = width * 0.16f,
+        color = DialPalette.Red,
+        inward = false
+    )
 }
 
 // =============================================================== dial background
@@ -1017,16 +1042,18 @@ private fun DrawScope.drawBatonHand(
 
 private fun DrawScope.drawCrownAndPushers(g: DialGeom) {
     drawAngledChronoControl(g, angleFromNorthDeg = 60.0,                  // 2 o'clock — top pusher
-        shaftLen = g.rOuter * 0.060f, shaftHalfW = g.rOuter * 0.025f,
-        capDepth = g.rOuter * 0.055f, capHalfW = g.rOuter * 0.060f,
+        shaftLen = g.rOuter * 0.020f, shaftHalfW = g.rOuter * 0.030f,
+        capDepth = g.rOuter * 0.060f, capHalfW = g.rOuter * 0.065f,
         reeded = true)
     drawAngledChronoControl(g, angleFromNorthDeg = 120.0,                 // 4 o'clock — bottom pusher
-        shaftLen = g.rOuter * 0.060f, shaftHalfW = g.rOuter * 0.025f,
-        capDepth = g.rOuter * 0.055f, capHalfW = g.rOuter * 0.060f,
+        shaftLen = g.rOuter * 0.020f, shaftHalfW = g.rOuter * 0.030f,
+        capDepth = g.rOuter * 0.060f, capHalfW = g.rOuter * 0.065f,
         reeded = true)
+    // Crown stem nearly zero — cap sits almost flush with the case rim,
+    // matching photo image 15.
     drawAngledChronoControl(g, angleFromNorthDeg = 90.0,                  // 3 o'clock — crown
-        shaftLen = g.rOuter * 0.070f, shaftHalfW = g.rOuter * 0.038f,
-        capDepth = g.rOuter * 0.075f, capHalfW = g.rOuter * 0.085f,
+        shaftLen = g.rOuter * 0.015f, shaftHalfW = g.rOuter * 0.045f,
+        capDepth = g.rOuter * 0.080f, capHalfW = g.rOuter * 0.090f,
         reeded = true)
 }
 
