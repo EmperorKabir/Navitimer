@@ -41,9 +41,9 @@ object DialMath {
     const val RED_10: Double = 10.0
     const val RED_36: Double = 36.0
     const val RED_60_MPH: Double = 60.0
-    const val KM_MARKER: Double = 61.0
-    val STAT_MARKER: Double = KM_MARKER / MILE_TO_KM   // ~37.9039
-    val NAUT_MARKER: Double = KM_MARKER / NAUT_TO_KM   // ~32.9374
+    const val KM_MARKER: Double = 63.0
+    val STAT_MARKER: Double = KM_MARKER / MILE_TO_KM   // ~39.15  (printed numeral nearby on the photo: 40)
+    val NAUT_MARKER: Double = KM_MARKER / NAUT_TO_KM   // ~34.02  (printed numeral nearby on the photo: 35)
 
     /** Wrap an angle to [0, 360). */
     fun wrap360(angle: Double): Double {
