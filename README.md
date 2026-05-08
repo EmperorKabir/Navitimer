@@ -72,6 +72,19 @@ sources" once).
 `sheet.csv` (rows 10–33) — the user-supplied spreadsheet of equations
 the app must demonstrate.
 
+## CI (GitHub Actions)
+
+A ready-to-go workflow lives at `docs/github-actions-workflow.yml`. It's
+not under `.github/workflows/` because the PAT this project was first
+pushed with lacked the `workflow` scope. To enable CI:
+
+1. Create a new GitHub PAT with `repo` + `workflow` scopes.
+2. `cmdkey /generic:git:https://github.com /user:EmperorKabir /pass:NEW_TOKEN`
+   (or replace via Windows Credential Manager UI).
+3. Move the file: `mkdir -p .github/workflows && mv docs/github-actions-workflow.yml .github/workflows/build.yml`.
+4. Commit and push. The Actions tab will then build a debug APK on every
+   push and upload it as a downloadable artifact.
+
 ## Trademark notice
 
 "BREITLING", "NAVITIMER" and the winged-anchor mark are trademarks of
