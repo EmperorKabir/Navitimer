@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
@@ -34,6 +36,7 @@ fun AlignInput(
 ) {
     var outer by remember { mutableStateOf("10") }
     var inner by remember { mutableStateOf("16.09") }
+    val haptics = LocalHapticFeedback.current
 
     Column(
         modifier = modifier
@@ -72,12 +75,18 @@ fun AlignInput(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            OutlinedButton(onClick = onReset) { Text("Reset") }
+            OutlinedButton(onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onReset()
+            }) { Text("Reset") }
             Spacer(Modifier.size(8.dp))
             Button(onClick = {
                 val x = outer.toDoubleOrNull()
                 val y = inner.toDoubleOrNull()
-                if (x != null && y != null) onSnapAlign(x, y)
+                if (x != null && y != null) {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onSnapAlign(x, y)
+                }
             }) { Text("Snap") }
         }
     }

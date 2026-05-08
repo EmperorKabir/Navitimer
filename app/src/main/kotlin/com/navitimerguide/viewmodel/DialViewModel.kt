@@ -13,7 +13,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 
 class DialViewModel : ViewModel() {
 
-    private val _rotationDegrees = MutableStateFlow(0.0)
+    // Start aligned outer-25 to inner-10, so the equations panel demonstrates
+    // a "× 2.5" multiplier and the sample worked examples are non-trivial on
+    // first launch. Aligning to 0° would show only identity equations.
+    private val _rotationDegrees = MutableStateFlow(DialMath.alignRotation(outerX = 25.0, innerY = 10.0))
     val rotationDegrees: StateFlow<Double> = _rotationDegrees.asStateFlow()
 
     fun rotateBy(deltaDegrees: Double) {

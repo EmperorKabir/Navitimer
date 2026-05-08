@@ -25,7 +25,10 @@ fun Modifier.bezelDragRotation(onRotate: (Double) -> Unit): Modifier = composed 
                 val center = Offset(size.width / 2f, size.height / 2f)
                 val radius = minOf(size.width, size.height) / 2f
                 val r = hypot(offset.x - center.x, offset.y - center.y)
-                state.active = r >= radius * 0.86f && r <= radius * 1.05f
+                // Larger touch target than the literal coin-edge so the bezel is
+                // easy to grab on small screens; drags inside the dial centre
+                // (sub-dial / wordmark area) are still ignored.
+                state.active = r >= radius * 0.62f && r <= radius * 1.10f
                 state.lastAngle = atan2((offset.y - center.y).toDouble(), (offset.x - center.x).toDouble())
                 state.center = center
             },

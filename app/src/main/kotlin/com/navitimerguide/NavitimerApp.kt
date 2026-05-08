@@ -28,10 +28,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.navitimerguide.controls.AlignInput
 import com.navitimerguide.controls.AngleSlider
+import com.navitimerguide.controls.Presets
 import com.navitimerguide.controls.StepArrows
 import com.navitimerguide.dial.WatchDial
 import com.navitimerguide.dial.bezelDragRotation
 import com.navitimerguide.equations.EquationsPanel
+import com.navitimerguide.equations.IntroCard
 import com.navitimerguide.viewmodel.DialViewModel
 
 @Composable
@@ -59,10 +61,11 @@ fun NavitimerApp() {
                         onReset = vm::reset
                     )
                     Spacer(Modifier.size(12.dp))
-                    EquationsPanel(
-                        groups = groups,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        IntroCard(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
+                        Spacer(Modifier.size(6.dp))
+                        EquationsPanel(groups = groups, modifier = Modifier.weight(1f))
+                    }
                 }
             } else {
                 Column(
@@ -80,6 +83,8 @@ fun NavitimerApp() {
                         onSnap = vm::snapAlign,
                         onReset = vm::reset
                     )
+                    Spacer(Modifier.size(10.dp))
+                    IntroCard()
                     Spacer(Modifier.size(8.dp))
                     Text(
                         text = "Equations (live)",
@@ -88,7 +93,6 @@ fun NavitimerApp() {
                             .fillMaxWidth()
                             .padding(start = 4.dp, top = 4.dp, bottom = 4.dp)
                     )
-                    // Render groups inline (not LazyColumn) so the outer scroll handles it.
                     groups.forEach { g -> com.navitimerguide.equations.GroupCardInline(g) }
                 }
             }
@@ -116,9 +120,11 @@ private fun DialColumn(
             WatchDial(bezelRotationDegrees = rotation)
         }
         Spacer(Modifier.size(10.dp))
-        StepArrows(onStep = onRotate, modifier = Modifier.fillMaxWidth())
+        Presets(onSetAngle = onSetAngle, onReset = onReset, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.size(8.dp))
         AngleSlider(angle = rotation, onAngleChange = onSetAngle, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.size(8.dp))
+        StepArrows(onStep = onRotate, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.size(8.dp))
         AlignInput(
             onSnapAlign = onSnap,
