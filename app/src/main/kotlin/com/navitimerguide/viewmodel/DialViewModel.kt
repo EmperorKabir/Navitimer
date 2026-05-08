@@ -2,14 +2,9 @@ package com.navitimerguide.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.navitimerguide.dial.DialMath
-import com.navitimerguide.equations.EquationEngine
-import com.navitimerguide.equations.EquationGroup
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.MutableSharedFlow
 
 class DialViewModel : ViewModel() {
 
@@ -37,5 +32,16 @@ class DialViewModel : ViewModel() {
         _rotationDegrees.value = 0.0
     }
 
-    fun equationsFor(angle: Double): List<EquationGroup> = EquationEngine.compute(angle)
+    /** Set the bezel so that outer-10 sits over inner-(k*10), giving multiplier k. */
+    fun setMultiplier(k: Double) {
+        if (k <= 0 || !k.isFinite()) return
+        setRotation(DialMath.alignRotation(outerX = 10.0 * k, innerY = 10.0))
+    }
+
+    fun currentMultiplier(): Double = DialMath.multiplierFromRotation(_rotationDegrees.value)
+
+    /** Convenience: align distance (outer) with time-in-minutes (inner). */
+    fun setSpeedTimeDistance(distance: Double, timeMinutes: Double) {
+        if (distance > 0 && timeMinutes > 0) snapAlign(outerX = distance, innerY = timeMinutes)
+    }
 }

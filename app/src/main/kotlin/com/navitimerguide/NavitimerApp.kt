@@ -12,35 +12,34 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.navitimerguide.controls.AlignInput
 import com.navitimerguide.controls.AngleSlider
 import com.navitimerguide.controls.Presets
-import com.navitimerguide.controls.StepArrows
 import com.navitimerguide.dial.WatchDial
 import com.navitimerguide.dial.bezelDragRotation
-import com.navitimerguide.equations.EquationsPanel
 import com.navitimerguide.equations.IntroCard
+import com.navitimerguide.equations.cards.DivisionCard
+import com.navitimerguide.equations.cards.MultiplicationCard
+import com.navitimerguide.equations.cards.NautKmCard
+import com.navitimerguide.equations.cards.SpeedTimeDistanceCard
+import com.navitimerguide.equations.cards.StatKmCard
+import com.navitimerguide.equations.cards.TimeUnitsCard
 import com.navitimerguide.viewmodel.DialViewModel
 
 @Composable
 fun NavitimerApp() {
     val vm: DialViewModel = viewModel()
     val rotation by vm.rotationDegrees.collectAsStateWithLifecycle()
-    val groups = remember(rotation) { vm.equationsFor(rotation) }
 
     Scaffold { innerPadding ->
         BoxWithConstraints(
@@ -55,16 +54,17 @@ fun NavitimerApp() {
                     DialColumn(
                         modifier = Modifier.weight(1f),
                         rotation = rotation,
-                        onRotate = vm::rotateBy,
-                        onSetAngle = vm::setRotation,
-                        onSnap = vm::snapAlign,
-                        onReset = vm::reset
+                        vm = vm
                     )
                     Spacer(Modifier.size(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        IntroCard(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
-                        Spacer(Modifier.size(6.dp))
-                        EquationsPanel(groups = groups, modifier = Modifier.weight(1f))
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        IntroCard()
+                        EquationCards(vm = vm)
                     }
                 }
             } else {
@@ -78,22 +78,12 @@ fun NavitimerApp() {
                     DialColumn(
                         modifier = Modifier.fillMaxWidth(),
                         rotation = rotation,
-                        onRotate = vm::rotateBy,
-                        onSetAngle = vm::setRotation,
-                        onSnap = vm::snapAlign,
-                        onReset = vm::reset
+                        vm = vm
                     )
                     Spacer(Modifier.size(10.dp))
                     IntroCard()
                     Spacer(Modifier.size(8.dp))
-                    Text(
-                        text = "Equations (live)",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 4.dp, top = 4.dp, bottom = 4.dp)
-                    )
-                    groups.forEach { g -> com.navitimerguide.equations.GroupCardInline(g) }
+                    EquationCards(vm = vm)
                 }
             }
         }
@@ -101,35 +91,30 @@ fun NavitimerApp() {
 }
 
 @Composable
-private fun DialColumn(
-    modifier: Modifier,
-    rotation: Double,
-    onRotate: (Double) -> Unit,
-    onSetAngle: (Double) -> Unit,
-    onSnap: (Double, Double) -> Unit,
-    onReset: () -> Unit
-) {
+private fun DialColumn(modifier: Modifier, rotation: Double, vm: DialViewModel) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .bezelDragRotation { onRotate(it) },
+                .bezelDragRotation { vm.rotateBy(it) },
             contentAlignment = Alignment.Center
         ) {
             WatchDial(bezelRotationDegrees = rotation)
         }
         Spacer(Modifier.size(10.dp))
-        Presets(onSetAngle = onSetAngle, onReset = onReset, modifier = Modifier.fillMaxWidth())
+        Presets(onSetAngle = vm::setRotation, onReset = vm::reset, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.size(8.dp))
-        AngleSlider(angle = rotation, onAngleChange = onSetAngle, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.size(8.dp))
-        StepArrows(onStep = onRotate, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.size(8.dp))
-        AlignInput(
-            onSnapAlign = onSnap,
-            onReset = onReset,
-            modifier = Modifier.fillMaxWidth()
-        )
+        AngleSlider(angle = rotation, onAngleChange = vm::setRotation, modifier = Modifier.fillMaxWidth())
     }
+}
+
+@Composable
+private fun EquationCards(vm: DialViewModel) {
+    DivisionCard(onSnapAlign = vm::snapAlign, onSetMultiplier = vm::setMultiplier)
+    MultiplicationCard(onSetMultiplier = vm::setMultiplier)
+    SpeedTimeDistanceCard(onSnapAlign = vm::snapAlign)
+    StatKmCard(onSnapAlign = vm::snapAlign)
+    NautKmCard(onSnapAlign = vm::snapAlign)
+    TimeUnitsCard(onSetMultiplier = vm::setMultiplier)
 }

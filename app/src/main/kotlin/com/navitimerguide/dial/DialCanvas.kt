@@ -34,21 +34,18 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The full watch face, structured as three stacked layers:
+ * The full watch face, three layered Canvases (static / rotating / live).
  *
- *   1. [StaticDial]      — dial background, brand marks, sub-dial faces,
- *                          inner fixed slide-rule scale, hour indices,
- *                          crown + pushers. Drawn once; Compose skips
- *                          recomposition when inputs (size + measurer)
- *                          don't change.
- *   2. [RotatingBezel]   — outer rotating bezel scale, drawn once into
- *                          its own graphics layer and rotated via
- *                          `graphicsLayer { rotationZ = … }` (no inner
- *                          redraw on rotation change).
- *   3. [LiveHandsLayer]  — hour, minute, central red chronograph hand,
- *                          and small-seconds sub-dial hand. Driven by
- *                          a 4 Hz tick (smooth enough for visible
- *                          movement, light on battery).
+ * Layer 1 [StaticDial]   — chrome ring, bezel insert recess, fixed
+ *                           rehaut scale, sunburst dial, brand marks,
+ *                           sub-dial guilloché faces, applied indices,
+ *                           crown and pushers.
+ * Layer 2 [RotatingBezel] — outer rotating slide-rule scale; rotated
+ *                           via `graphicsLayer { rotationZ }` so we
+ *                           don't repaint on every rotation change.
+ * Layer 3 [LiveHands]     — hour, minute, central red chronograph hand,
+ *                           and small-seconds sub-dial hand at 9
+ *                           o'clock. Driven by a 4 Hz tick.
  */
 @Composable
 fun WatchDial(
@@ -79,11 +76,11 @@ private fun StaticDial(measurer: TextMeasurer, modifier: Modifier) {
     Canvas(modifier = modifier) {
         val g = geom()
         drawCoinEdgeBaseplate(g)
-        // Black ring under the rotating bezel
-        drawCircle(color = Color(0xFF050505), radius = g.rChapterOuter * 1.005f, center = g.center,
-            style = Stroke(width = g.rOuter * 0.012f))
+        drawBezelInsertRecess(g)
         drawFixedChapterRing(g, measurer)
         drawDialBackground(g)
+        drawSunburstOverlay(g)
+        drawDialHighlight(g)
         drawBrandMarks(g, measurer)
         drawSubDialFaces(g, measurer)
         drawDialHourIndices(g)
@@ -114,7 +111,7 @@ private fun LiveHandsLayer(modifier: Modifier) {
     val nowState: State<LocalDateTime> = produceState(initialValue = currentLocalDateTime()) {
         while (true) {
             value = currentLocalDateTime()
-            delay(250L)  // 4 Hz tick — smooth enough, easy on the battery
+            delay(250L)
         }
     }
     val now = nowState.value
@@ -156,79 +153,108 @@ private fun DrawScope.geom(): DialGeom {
     return DialGeom(w, h, cx, cy, Offset(cx, cy), rOuter, rBezelOuter, rBezelInner, rChapterOuter, rChapterInner, rDial)
 }
 
-// =============================================================== draw helpers
+// =============================================================== chrome teeth
 
 private fun DrawScope.drawCoinEdgeBaseplate(g: DialGeom) {
-    drawCircle(color = Color(0xFF101010), radius = g.rOuter, center = g.center)
-    val teeth = 60
+    val teeth = 90
+    val rTip = g.rOuter
+    val rBase = g.rOuter * 0.94f
+    // Substrate
+    drawCircle(color = Color(0xFF0C0C0E), radius = g.rOuter, center = g.center)
+
     for (i in 0 until teeth) {
         val angle = i * (360.0 / teeth)
         val rad = angle * PI / 180.0
-        val rTip = g.rOuter * 1.0f
-        val rBase = g.rOuter * 0.965f
         val perpRad = rad + PI / 2
-        val halfWidth = g.rOuter * 0.012f
+        val toothHalf = g.rOuter * 0.014f
+        val toothCx = g.center.x + ((rTip + rBase) / 2 * cos(rad)).toFloat()
+        val toothCy = g.center.y + ((rTip + rBase) / 2 * sin(rad)).toFloat()
         val tipX = g.center.x + (rTip * cos(rad)).toFloat()
         val tipY = g.center.y + (rTip * sin(rad)).toFloat()
         val baseX = g.center.x + (rBase * cos(rad)).toFloat()
         val baseY = g.center.y + (rBase * sin(rad)).toFloat()
-        val px = (halfWidth * cos(perpRad)).toFloat()
-        val py = (halfWidth * sin(perpRad)).toFloat()
+        val px = (toothHalf * cos(perpRad)).toFloat()
+        val py = (toothHalf * sin(perpRad)).toFloat()
+
+        // Groove (dark) on the leading side
         drawLine(
-            color = DialPalette.CrownSteel.copy(alpha = 0.9f),
-            start = Offset(baseX + px, baseY + py),
-            end = Offset(tipX + px, tipY + py),
-            strokeWidth = 1.2f
+            color = DialPalette.SteelGroove,
+            start = Offset(baseX + px * 1.3f, baseY + py * 1.3f),
+            end = Offset(tipX + px * 1.3f, tipY + py * 1.3f),
+            strokeWidth = toothHalf * 0.65f
         )
+        // Bright highlight (centre of tooth)
         drawLine(
-            color = DialPalette.CrownSteel.copy(alpha = 0.9f),
-            start = Offset(baseX - px, baseY - py),
-            end = Offset(tipX - px, tipY - py),
-            strokeWidth = 1.2f
+            color = DialPalette.SteelLight,
+            start = Offset(baseX, baseY),
+            end = Offset(tipX, tipY),
+            strokeWidth = toothHalf * 0.75f
+        )
+        // Mid-grey shadow on the trailing side
+        drawLine(
+            color = DialPalette.SteelMid,
+            start = Offset(baseX - px * 0.6f, baseY - py * 0.6f),
+            end = Offset(tipX - px * 0.6f, tipY - py * 0.6f),
+            strokeWidth = toothHalf * 0.55f
         )
     }
+
+    // Outer chrome highlight ring
+    drawCircle(color = DialPalette.SteelLight, radius = g.rOuter, center = g.center,
+        style = Stroke(width = 1.2f))
+    // Inner shadow at the joint between bezel teeth and the case
+    drawCircle(color = DialPalette.BezelEdgeShadow, radius = rBase, center = g.center,
+        style = Stroke(width = g.rOuter * 0.008f))
 }
+
+// =============================================================== bezel insert recess
+
+private fun DrawScope.drawBezelInsertRecess(g: DialGeom) {
+    drawCircle(color = DialPalette.BezelInsertBlack, radius = g.rBezelOuter, center = g.center)
+    drawCircle(color = Color(0xFF1B1B1B), radius = g.rBezelOuter, center = g.center,
+        style = Stroke(width = g.rOuter * 0.006f))
+    drawCircle(color = DialPalette.BezelEdgeShadow, radius = g.rBezelInner, center = g.center,
+        style = Stroke(width = g.rOuter * 0.012f))
+}
+
+// =============================================================== rotating bezel scale
 
 private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer) {
     val ringMid = (g.rBezelOuter + g.rBezelInner) / 2f
     val ringWidth = g.rBezelOuter - g.rBezelInner
 
-    // The rotating bezel ring itself (no need for graphicsLayer to draw — the
-    // PARENT applies rotationZ).
-    drawCircle(color = Color(0xFF1B1B1B), radius = g.rBezelOuter, center = g.center)
-    drawCircle(color = Color(0xFF000000), radius = g.rBezelInner, center = g.center)
-
-    // Numerals 10..95 step 1 (every numeral as a tick; multiples of 5 labelled)
-    for (v in 10..95) {
+    // Numerals + ticks: every integer 10..99
+    for (v in 10..99) {
         val angle = DialMath.valueToAngle(v.toDouble())
         val rad = (angle - 90.0) * PI / 180.0
         val isMajor = v % 5 == 0
-        val tickInner = ringMid + ringWidth * (if (isMajor) -0.42f else -0.32f)
+        val tickInner = ringMid + ringWidth * (if (isMajor) -0.42f else -0.28f)
         val tickOuter = ringMid + ringWidth * 0.42f
         val sx = g.center.x + (tickInner * cos(rad)).toFloat()
         val sy = g.center.y + (tickInner * sin(rad)).toFloat()
         val ex = g.center.x + (tickOuter * cos(rad)).toFloat()
         val ey = g.center.y + (tickOuter * sin(rad)).toFloat()
         drawLine(
-            color = DialPalette.Numeral.copy(alpha = if (isMajor) 0.95f else 0.6f),
+            color = DialPalette.Numeral.copy(alpha = if (isMajor) 0.95f else 0.55f),
             start = Offset(sx, sy),
             end = Offset(ex, ey),
-            strokeWidth = if (isMajor) 1.6f else 0.9f
+            strokeWidth = if (isMajor) 1.6f else 0.7f
         )
         if (isMajor) {
             val labelR = ringMid + ringWidth * 0.05f
+            val isRed = (v == 60 || v == 10 || v == 36)
             drawScaleNumeralUpright(
                 measurer = measurer,
                 text = v.toString(),
                 angleDegFromTop = (angle - 90).toFloat(),
                 radius = labelR,
                 center = g.center,
-                color = if (v == 60 || v == 10 || v == 36) DialPalette.Red else DialPalette.Numeral,
+                color = if (isRed) DialPalette.Red else DialPalette.Numeral,
                 sizeSp = (g.rOuter * 0.06f / density).sp
             )
         }
     }
-    // Marker triangles on outer scale at red 60 / 10 / 36
+    // Red triangle indices on outer bezel at 10 / 36 / 60
     listOf(10.0, 36.0, 60.0).forEach { v ->
         val angle = DialMath.valueToAngle(v) - 90.0
         drawTriangleAtAngle(
@@ -242,13 +268,19 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
     }
 }
 
+// =============================================================== fixed chapter ring
+
 private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) {
     val midR = (g.rChapterOuter + g.rChapterInner) / 2f
     val width = g.rChapterOuter - g.rChapterInner
 
     drawCircle(color = Color(0xFF050505), radius = g.rChapterOuter, center = g.center)
+    // Subtle inset shadow at outer edge — suggests the angled rehaut step
+    drawCircle(color = Color(0xFF1F1F1F), radius = g.rChapterOuter, center = g.center,
+        style = Stroke(width = width * 0.05f))
 
-    for (v in 10..95) {
+    // Numerals + ticks: every integer 10..99
+    for (v in 10..99) {
         val angle = DialMath.valueToAngle(v.toDouble()) - 90.0
         val rad = angle * PI / 180.0
         val isMajor = v % 5 == 0
@@ -259,10 +291,10 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         val ex = g.center.x + (tickOuter * cos(rad)).toFloat()
         val ey = g.center.y + (tickOuter * sin(rad)).toFloat()
         drawLine(
-            color = DialPalette.Numeral.copy(alpha = if (isMajor) 0.9f else 0.45f),
+            color = DialPalette.Numeral.copy(alpha = if (isMajor) 0.9f else 0.40f),
             start = Offset(sx, sy),
             end = Offset(ex, ey),
-            strokeWidth = if (isMajor) 1.4f else 0.7f
+            strokeWidth = if (isMajor) 1.4f else 0.6f
         )
         if (isMajor) {
             val isRed = (v == 60 || v == 10 || v == 36)
@@ -278,38 +310,43 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         }
     }
 
-    Markers.all.filter { it.side == ScaleSide.INNER }.forEach { m ->
+    // Markers on inner ring: KM (text), STAT (triangle+text), NAUT (triangle+text), MPH (text under red 60)
+    val markerLabelR = midR - width * 0.32f
+    Markers.all.filter { it.side == ScaleSide.INNER && it.style != MarkerStyle.RED_NUMERAL }
+        .forEach { m ->
         val angle = DialMath.valueToAngle(m.scaleValue) - 90.0
         if (m.style == MarkerStyle.TRIANGLE_OUTWARD) {
             drawTriangleAtAngle(
                 center = g.center,
                 angleDeg = angle.toFloat(),
                 radius = midR + width * 0.40f,
-                size = width * 0.16f,
+                size = width * 0.18f,
                 color = DialPalette.Red,
                 inward = false
             )
         }
-        m.text?.takeIf { m.style != MarkerStyle.RED_NUMERAL }?.let { txt ->
+        m.text?.let { txt ->
             drawScaleNumeralUpright(
                 measurer = measurer,
                 text = txt,
                 angleDegFromTop = angle.toFloat(),
-                radius = midR - width * 0.32f,
+                radius = markerLabelR,
                 center = g.center,
                 color = DialPalette.Red,
-                sizeSp = (g.rOuter * 0.040f / density).sp,
+                sizeSp = (g.rOuter * 0.038f / density).sp,
                 bold = true
             )
         }
     }
 }
 
+// =============================================================== dial bg + sunburst + highlight
+
 private fun DrawScope.drawDialBackground(g: DialGeom) {
     val brush = Brush.radialGradient(
         colors = listOf(
             DialPalette.DialGreenInner,
-            Color(0xFF073822),
+            DialPalette.DialGreenSpokeDark,
             DialPalette.DialGreenOuter
         ),
         center = g.center,
@@ -318,10 +355,51 @@ private fun DrawScope.drawDialBackground(g: DialGeom) {
     drawCircle(brush = brush, radius = g.rDial, center = g.center)
 }
 
+private fun DrawScope.drawSunburstOverlay(g: DialGeom) {
+    // 240 thin radial spokes, alternating slightly lighter / darker green.
+    // Drawn as thin lines from a small inner radius (skip dial centre) to
+    // the outer edge of the dial; alpha tapers via two stroke draws.
+    val spokes = 240
+    val rIn = g.rDial * 0.04f
+    val rOut = g.rDial * 0.98f
+    for (i in 0 until spokes) {
+        val angle = i * (360.0 / spokes)
+        val rad = angle * PI / 180.0
+        val sx = g.center.x + (rIn * cos(rad)).toFloat()
+        val sy = g.center.y + (rIn * sin(rad)).toFloat()
+        val ex = g.center.x + (rOut * cos(rad)).toFloat()
+        val ey = g.center.y + (rOut * sin(rad)).toFloat()
+        val light = i % 2 == 0
+        drawLine(
+            color = if (light) DialPalette.DialGreenSpokeLight.copy(alpha = 0.18f)
+                    else DialPalette.DialGreenSpokeDark.copy(alpha = 0.20f),
+            start = Offset(sx, sy),
+            end = Offset(ex, ey),
+            strokeWidth = 1.0f
+        )
+    }
+}
+
+private fun DrawScope.drawDialHighlight(g: DialGeom) {
+    // Soft off-centre white glow (top-left), like the photo's flash highlight
+    val glow = Brush.radialGradient(
+        colors = listOf(
+            Color(0x33FFFFFF),
+            Color(0x11FFFFFF),
+            Color(0x00FFFFFF)
+        ),
+        center = Offset(g.center.x - g.rDial * 0.45f, g.center.y - g.rDial * 0.55f),
+        radius = g.rDial * 0.85f
+    )
+    drawCircle(brush = glow, radius = g.rDial, center = g.center)
+}
+
+// =============================================================== brand marks + anchor
+
 private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer) {
-    val anchorY = g.center.y - g.rDial * 0.32f
+    val anchorY = g.center.y - g.rDial * 0.34f
     val anchorScale = g.rDial * 0.10f
-    drawAnchor(Offset(g.center.x, anchorY), anchorScale)
+    drawWingedAnchor(Offset(g.center.x, anchorY), anchorScale)
 
     drawCenteredText(measurer, "BREITLING",
         TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.10f / density).sp,
@@ -346,31 +424,55 @@ private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer) {
 }
 
 private fun DrawScope.drawCenteredText(
-    measurer: TextMeasurer,
-    text: String,
-    style: TextStyle,
-    centerTopLeft: Offset
+    measurer: TextMeasurer, text: String, style: TextStyle, centerTopLeft: Offset
 ) {
     val l = measurer.measure(androidx.compose.ui.text.AnnotatedString(text), style)
     drawText(textLayoutResult = l,
         topLeft = Offset(centerTopLeft.x - l.size.width / 2f, centerTopLeft.y))
 }
 
-private fun DrawScope.drawAnchor(c: Offset, scale: Float) {
+private fun DrawScope.drawWingedAnchor(c: Offset, scale: Float) {
     val color = DialPalette.Numeral.copy(alpha = 0.95f)
-    drawArc(color = color, startAngle = 200f, sweepAngle = 140f, useCenter = false,
-        topLeft = Offset(c.x - scale * 1.4f, c.y - scale * 0.7f),
-        size = Size(scale * 2.8f, scale * 1.4f), style = Stroke(width = scale * 0.18f))
-    drawLine(color = color, start = Offset(c.x, c.y - scale * 0.2f), end = Offset(c.x, c.y + scale * 0.9f),
-        strokeWidth = scale * 0.18f)
-    drawLine(color = color, start = Offset(c.x - scale * 0.55f, c.y + scale * 0.1f),
-        end = Offset(c.x + scale * 0.55f, c.y + scale * 0.1f), strokeWidth = scale * 0.14f)
-    drawArc(color = color, startAngle = 0f, sweepAngle = 180f, useCenter = false,
-        topLeft = Offset(c.x - scale * 0.7f, c.y + scale * 0.5f),
-        size = Size(scale * 1.4f, scale * 0.7f), style = Stroke(width = scale * 0.16f))
+    // Three stacked wing arcs each side, progressively smaller sweep
+    val wingSweeps = listOf(140f, 110f, 80f)
+    val wingRadii = listOf(1.4f, 1.15f, 0.9f)
+    val wingStartAngles = listOf(200f, 210f, 220f)  // top arc
+    for (i in wingSweeps.indices) {
+        val r = scale * wingRadii[i]
+        drawArc(
+            color = color,
+            startAngle = wingStartAngles[i],
+            sweepAngle = wingSweeps[i],
+            useCenter = false,
+            topLeft = Offset(c.x - r, c.y - r * 0.55f),
+            size = Size(r * 2, r * 1.1f),
+            style = Stroke(width = scale * (0.10f - i * 0.018f))
+        )
+    }
+    // Anchor: ring at top
+    drawCircle(color = color, center = Offset(c.x, c.y - scale * 0.35f), radius = scale * 0.13f,
+        style = Stroke(width = scale * 0.08f))
+    // Stem
+    drawLine(color = color, start = Offset(c.x, c.y - scale * 0.20f),
+        end = Offset(c.x, c.y + scale * 1.0f), strokeWidth = scale * 0.10f)
+    // Crossbar
+    drawLine(color = color, start = Offset(c.x - scale * 0.65f, c.y + scale * 0.05f),
+        end = Offset(c.x + scale * 0.65f, c.y + scale * 0.05f), strokeWidth = scale * 0.09f)
+    // Left fluke
+    drawArc(color = color, startAngle = 70f, sweepAngle = 110f, useCenter = false,
+        topLeft = Offset(c.x - scale * 0.70f, c.y + scale * 0.50f),
+        size = Size(scale * 0.70f, scale * 0.65f),
+        style = Stroke(width = scale * 0.10f))
+    // Right fluke
+    drawArc(color = color, startAngle = 0f, sweepAngle = 110f, useCenter = false,
+        topLeft = Offset(c.x, c.y + scale * 0.50f),
+        size = Size(scale * 0.70f, scale * 0.65f),
+        style = Stroke(width = scale * 0.10f))
+    // Centre rivet
+    drawCircle(color = color, center = Offset(c.x, c.y + scale * 0.05f), radius = scale * 0.08f)
 }
 
-// ----- sub-dial faces (no live hand here — that's drawn in LiveHandsLayer)
+// =============================================================== sub-dials (faces only)
 
 private fun DrawScope.drawSubDialFaces(g: DialGeom, measurer: TextMeasurer) {
     val subR = g.rDial * 0.22f
@@ -382,11 +484,14 @@ private fun DrawScope.drawSubDialFaces(g: DialGeom, measurer: TextMeasurer) {
     val hrCenter = Offset(g.center.x, g.center.y + offset)
     drawSubDialFace(hrCenter, subR, ticks = 12, majorEvery = 3,
         ringNumbers = listOf(3 to "3", 6 to "6", 9 to "9", 12 to "12"), measurer = measurer)
-    // Date window (uses today's day-of-month, evaluated at draw-time)
+    // Date window
     val now = currentLocalDateTime()
     val dateBoxW = subR * 0.65f
     val dateBoxH = subR * 0.32f
     val dateTopLeft = Offset(hrCenter.x - dateBoxW / 2f, hrCenter.y + subR * 0.25f)
+    drawRect(color = DialPalette.HandFrame,
+        topLeft = Offset(dateTopLeft.x - 1.2f, dateTopLeft.y - 1.2f),
+        size = Size(dateBoxW + 2.4f, dateBoxH + 2.4f))
     drawRect(color = Color.White, topLeft = dateTopLeft, size = Size(dateBoxW, dateBoxH))
     val l = measurer.measure(
         androidx.compose.ui.text.AnnotatedString(now.dayOfMonth.toString()),
@@ -398,7 +503,7 @@ private fun DrawScope.drawSubDialFaces(g: DialGeom, measurer: TextMeasurer) {
             dateTopLeft.x + (dateBoxW - l.size.width) / 2f,
             dateTopLeft.y + (dateBoxH - l.size.height) / 2f
         ))
-    // Frozen 30-min and 12-hr counter hands (chronograph idle)
+    // Frozen 30-min and 12-hr counter hands (chrono idle)
     val staticMin = Offset(g.center.x + offset, g.center.y)
     drawSubDialHand(staticMin, subR * 0.8f, 0f, DialPalette.Hand, subR * 0.04f)
     drawSubDialHand(hrCenter, subR * 0.78f, 0f, DialPalette.Hand, subR * 0.04f)
@@ -411,6 +516,15 @@ private fun DrawScope.drawSubDialFace(
     drawCircle(color = DialPalette.SubdialBlack, radius = radius, center = center)
     drawCircle(color = Color(0xFF1A1A1A), radius = radius, center = center,
         style = Stroke(width = radius * 0.04f))
+
+    // Azure / guilloché — concentric thin rings
+    val rings = 14
+    for (k in 1..rings) {
+        val r = radius * (0.06f + 0.86f * k / rings)
+        drawCircle(color = DialPalette.SubdialAzureTick.copy(alpha = 0.55f),
+            radius = r, center = center, style = Stroke(width = 0.6f))
+    }
+
     for (i in 0 until ticks) {
         val angle = i * (360.0 / ticks) - 90.0
         val rad = angle * PI / 180.0
@@ -421,7 +535,7 @@ private fun DrawScope.drawSubDialFace(
         val sy = center.y + (rIn * sin(rad)).toFloat()
         val ex = center.x + (rOut * cos(rad)).toFloat()
         val ey = center.y + (rOut * sin(rad)).toFloat()
-        drawLine(color = DialPalette.SubdialTick.copy(alpha = if (isMajor) 0.9f else 0.5f),
+        drawLine(color = DialPalette.SubdialTick.copy(alpha = if (isMajor) 0.95f else 0.5f),
             start = Offset(sx, sy), end = Offset(ex, ey),
             strokeWidth = if (isMajor) radius * 0.025f else radius * 0.012f)
     }
@@ -456,9 +570,11 @@ private fun DrawScope.drawSubDialSecondHand(g: DialGeom, now: LocalDateTime) {
     val offset = g.rDial * 0.42f
     val secondsCenter = Offset(g.center.x - offset, g.center.y)
     val s = now.second + now.nanosecond / 1e9
-    val angle = (s * 6.0).toFloat()  // 360/60
+    val angle = (s * 6.0).toFloat()
     drawSubDialHand(secondsCenter, subR * 0.85f, angle, DialPalette.Hand, subR * 0.04f)
 }
+
+// =============================================================== applied baton hour indices
 
 private fun DrawScope.drawDialHourIndices(g: DialGeom) {
     val skip = setOf(3, 6, 9)
@@ -468,14 +584,41 @@ private fun DrawScope.drawDialHourIndices(g: DialGeom) {
         val rad = angle * PI / 180.0
         val rIn = g.rDial * 0.62f
         val rOut = g.rDial * 0.74f
-        val sx = g.center.x + (rIn * cos(rad)).toFloat()
-        val sy = g.center.y + (rIn * sin(rad)).toFloat()
-        val ex = g.center.x + (rOut * cos(rad)).toFloat()
-        val ey = g.center.y + (rOut * sin(rad)).toFloat()
-        drawLine(color = DialPalette.Hand, start = Offset(sx, sy), end = Offset(ex, ey),
-            strokeWidth = g.rDial * 0.024f)
+        val cosA = cos(rad).toFloat()
+        val sinA = sin(rad).toFloat()
+        val cx = g.center.x + ((rIn + rOut) / 2 * cos(rad)).toFloat()
+        val cy = g.center.y + ((rIn + rOut) / 2 * sin(rad)).toFloat()
+        // Frame and lume widths (perpendicular to radial direction)
+        val frameW = g.rDial * 0.030f
+        val lumeW = g.rDial * 0.020f
+        val length = rOut - rIn
+        // Build a parallelogram path along radial direction with given perp width
+        fun batonPath(width: Float): Path {
+            val perpX = (-sinA) * width
+            val perpY = cosA * width
+            val tipX = g.center.x + (rOut * cos(rad)).toFloat()
+            val tipY = g.center.y + (rOut * sin(rad)).toFloat()
+            val baseX = g.center.x + (rIn * cos(rad)).toFloat()
+            val baseY = g.center.y + (rIn * sin(rad)).toFloat()
+            return Path().apply {
+                moveTo(tipX + perpX, tipY + perpY)
+                lineTo(tipX - perpX, tipY - perpY)
+                lineTo(baseX - perpX, baseY - perpY)
+                lineTo(baseX + perpX, baseY + perpY)
+                close()
+            }
+        }
+        // Frame (outer chrome rectangle)
+        drawPath(path = batonPath(frameW), color = DialPalette.HandFrame)
+        // Lume (cream inset rectangle)
+        drawPath(path = batonPath(lumeW), color = DialPalette.Lume)
+        // Frame outline
+        drawPath(path = batonPath(frameW), color = Color(0xFF20242A),
+            style = Stroke(width = 0.8f))
     }
 }
+
+// =============================================================== hands
 
 private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
     val s = now.second + now.nanosecond / 1e9
@@ -484,56 +627,111 @@ private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
     val hourAngle = (hFull * 30.0).toFloat()
     val minAngle = (mFull * 6.0).toFloat()
 
-    drawHandShape(g.center, hourAngle, g.rDial * 0.42f, g.rDial * 0.045f, DialPalette.Hand)
-    drawHandShape(g.center, minAngle, g.rDial * 0.62f, g.rDial * 0.035f, DialPalette.Hand)
-    // Central red chronograph second hand — frozen at 12 (chrono idle)
+    drawBatonHand(g.center, hourAngle, length = g.rDial * 0.42f,
+        outerW = g.rDial * 0.045f, innerW = g.rDial * 0.025f)
+    drawBatonHand(g.center, minAngle, length = g.rDial * 0.62f,
+        outerW = g.rDial * 0.035f, innerW = g.rDial * 0.018f)
+    // Central red chronograph hand — frozen at 12 (chrono idle)
     drawLine(color = DialPalette.SecondHand, start = g.center,
         end = Offset(g.center.x, g.center.y - g.rDial * 0.66f),
         strokeWidth = g.rDial * 0.012f)
     drawLine(color = DialPalette.SecondHand, start = g.center,
         end = Offset(g.center.x, g.center.y + g.rDial * 0.10f),
         strokeWidth = g.rDial * 0.018f)
+    // Hub: chrome boss + tiny red dot
+    drawCircle(color = DialPalette.HandFrame, radius = g.rDial * 0.030f, center = g.center)
     drawCircle(color = DialPalette.Hand, radius = g.rDial * 0.025f, center = g.center)
     drawCircle(color = DialPalette.SecondHand, radius = g.rDial * 0.012f, center = g.center)
 }
 
-private fun DrawScope.drawHandShape(
-    center: Offset, angleDeg: Float, length: Float, baseWidth: Float, color: Color
+/**
+ * A baton-shaped hand with chrome frame and lume centre stripe.
+ * angleDeg = 0 points to 12 o'clock; clockwise positive.
+ */
+private fun DrawScope.drawBatonHand(
+    center: Offset, angleDeg: Float, length: Float, outerW: Float, innerW: Float
 ) {
     val rad = (angleDeg - 90.0) * PI / 180.0
     val cosA = cos(rad).toFloat()
     val sinA = sin(rad).toFloat()
     val tipX = center.x + length * cosA
     val tipY = center.y + length * sinA
-    val baseLeftX = center.x + (-baseWidth) * (-sinA)
-    val baseLeftY = center.y + (-baseWidth) * cosA
-    val baseRightX = center.x + (baseWidth) * (-sinA)
-    val baseRightY = center.y + (baseWidth) * cosA
-    val path = Path().apply {
-        moveTo(baseLeftX, baseLeftY)
-        lineTo(tipX, tipY)
-        lineTo(baseRightX, baseRightY)
-        close()
+    val backLen = length * 0.18f
+    val backX = center.x - backLen * cosA
+    val backY = center.y - backLen * sinA
+    fun handPath(w: Float): Path {
+        val perpX = -sinA * w
+        val perpY = cosA * w
+        val tipFlatLen = length * 0.08f
+        val tipPreX = center.x + (length - tipFlatLen) * cosA
+        val tipPreY = center.y + (length - tipFlatLen) * sinA
+        return Path().apply {
+            // back base
+            moveTo(backX + perpX, backY + perpY)
+            lineTo(backX - perpX, backY - perpY)
+            // along the hand to just before tip
+            lineTo(tipPreX - perpX, tipPreY - perpY)
+            // chamfer to tip
+            lineTo(tipX, tipY)
+            lineTo(tipPreX + perpX, tipPreY + perpY)
+            close()
+        }
     }
-    drawPath(path = path, color = color)
-    drawPath(path = path, color = Color(0xFF1A1A1A), style = Stroke(width = length * 0.012f))
+    drawPath(handPath(outerW), color = DialPalette.HandFrame)
+    drawPath(handPath(innerW), color = DialPalette.Lume)
+    drawPath(handPath(outerW), color = Color(0xFF1A1A1A), style = Stroke(width = 0.8f))
 }
 
+// =============================================================== crown + pushers
+
 private fun DrawScope.drawCrownAndPushers(g: DialGeom) {
-    val crownX = g.center.x + g.rOuter * 1.04f
-    val crownY = g.center.y - g.rOuter * 0.04f
-    drawRect(color = DialPalette.CrownSteel,
-        topLeft = Offset(crownX - g.rOuter * 0.06f, crownY - g.rOuter * 0.10f),
-        size = Size(g.rOuter * 0.08f, g.rOuter * 0.20f))
-    drawCircle(color = DialPalette.CrownSteel, radius = g.rOuter * 0.05f,
-        center = Offset(crownX + g.rOuter * 0.02f, crownY))
-    drawRect(color = DialPalette.CrownSteel,
-        topLeft = Offset(crownX - g.rOuter * 0.05f, crownY - g.rOuter * 0.30f),
-        size = Size(g.rOuter * 0.06f, g.rOuter * 0.10f))
-    drawRect(color = DialPalette.CrownSteel,
-        topLeft = Offset(crownX - g.rOuter * 0.05f, crownY + g.rOuter * 0.20f),
-        size = Size(g.rOuter * 0.06f, g.rOuter * 0.10f))
+    val r = g.rOuter
+    val crownX = g.center.x + r * 1.04f
+    val crownY = g.center.y - r * 0.04f
+
+    // Crown body (cylindrical, with reeded grip)
+    val bodyW = r * 0.09f
+    val bodyH = r * 0.22f
+    val bodyTopLeft = Offset(crownX - bodyW / 2f, crownY - bodyH / 2f)
+    drawRect(color = DialPalette.SteelLight, topLeft = bodyTopLeft, size = Size(bodyW, bodyH))
+    // Vertical reeded stripes
+    val stripes = 9
+    for (i in 1 until stripes) {
+        val x = bodyTopLeft.x + bodyW * i / stripes
+        drawLine(color = DialPalette.SteelGroove,
+            start = Offset(x, bodyTopLeft.y + bodyH * 0.05f),
+            end = Offset(x, bodyTopLeft.y + bodyH * 0.95f),
+            strokeWidth = 1.2f)
+    }
+    // Cap (the outer face)
+    val capR = r * 0.06f
+    drawCircle(color = DialPalette.SteelLight, radius = capR, center = Offset(crownX + bodyW * 0.45f, crownY))
+    drawCircle(color = DialPalette.SteelMid, radius = capR, center = Offset(crownX + bodyW * 0.45f, crownY),
+        style = Stroke(width = 0.8f))
+
+    // Pushers (two)
+    fun pusher(centerY: Float) {
+        val capW = r * 0.07f
+        val capH = r * 0.04f
+        val shaftW = r * 0.04f
+        val shaftH = r * 0.06f
+        // Cap rectangle (outermost)
+        drawRect(color = DialPalette.SteelLight,
+            topLeft = Offset(crownX - capW / 2f + r * 0.01f, centerY - capH / 2f),
+            size = Size(capW, capH))
+        drawRect(color = DialPalette.SteelMid,
+            topLeft = Offset(crownX - capW / 2f + r * 0.01f, centerY - capH / 2f),
+            size = Size(capW, capH), style = Stroke(width = 0.6f))
+        // Shaft (narrower, closer to case)
+        drawRect(color = DialPalette.SteelMid,
+            topLeft = Offset(crownX - shaftW / 2f - r * 0.025f, centerY - shaftH / 2f),
+            size = Size(shaftW, shaftH))
+    }
+    pusher(g.center.y - r * 0.36f)
+    pusher(g.center.y + r * 0.30f)
 }
+
+// =============================================================== text helpers
 
 private fun DrawScope.drawScaleNumeralUpright(
     measurer: TextMeasurer,
