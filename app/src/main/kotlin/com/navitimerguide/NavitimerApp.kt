@@ -27,7 +27,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.navitimerguide.controls.AngleSlider
 import com.navitimerguide.controls.Presets
 import com.navitimerguide.dial.WatchDial
 import com.navitimerguide.dial.bezelDragRotation
@@ -158,7 +157,5 @@ private fun DialColumn(
         }
         Spacer(Modifier.size(10.dp))
         Presets(onSetAngle = vm::setRotation, onReset = vm::reset, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.size(8.dp))
-        AngleSlider(angle = rotation, onAngleChange = vm::setRotation, modifier = Modifier.fillMaxWidth())
     }
 }
