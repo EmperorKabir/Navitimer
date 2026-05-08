@@ -308,10 +308,15 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
     val ringMid = (g.rBezelOuter + g.rBezelInner) / 2f
     val ringWidth = g.rBezelOuter - g.rBezelInner
 
-    val tallLen = ringWidth * 0.42f
-    val medLen = ringWidth * 0.28f
-    val shortLen = ringWidth * 0.18f
-    val tickOuterR = ringMid + ringWidth * 0.42f
+    // Tall ticks now SPAN nearly the full ring height; medium ~60%; short ~40%.
+    // Outer end sits just inside the chrome edge so the inner end of a tall
+    // tick lines up with the outer edge of the chapter ring's tall tick on
+    // the same angle, giving the "ticks meeting across the step" look the
+    // photo shows.
+    val tallLen = ringWidth * 0.86f
+    val medLen = ringWidth * 0.58f
+    val shortLen = ringWidth * 0.40f
+    val tickOuterR = ringMid + ringWidth * 0.46f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -379,10 +384,10 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     drawCircle(color = Color(0xFF1F1F1F), radius = g.rChapterOuter, center = g.center,
         style = Stroke(width = width * 0.05f))
 
-    val tallLen = width * 0.42f
-    val medLen = width * 0.28f
-    val shortLen = width * 0.18f
-    val tickOuterR = midR + width * 0.42f
+    val tallLen = width * 0.86f
+    val medLen = width * 0.58f
+    val shortLen = width * 0.40f
+    val tickOuterR = midR + width * 0.46f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -500,32 +505,42 @@ private fun DrawScope.drawDialHighlight(g: DialGeom) {
 // =============================================================== brand marks + winged anchor
 
 private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer) {
-    // Logo above the BREITLING wordmark.
-    val logoY = g.center.y - g.rDial * 0.30f
-    val logoScale = g.rDial * 0.085f       // half-width = 0.085, total span ≈ 0.30
+    // Brand stack lives in the UPPER THIRD of the dial — well above the
+    // hub — matching the photo. Order top-to-bottom: wings, BREITLING,
+    // 1884, NAVITIMER. Stack ends at about y = -0.18 r.
+    val logoY = g.center.y - g.rDial * 0.46f
+    val logoScale = g.rDial * 0.085f
     drawBreitlingWings(Offset(g.center.x, logoY), logoScale)
 
     drawCenteredText(measurer, "BREITLING",
-        TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.090f / density).sp,
+        TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.092f / density).sp,
             fontWeight = FontWeight.Bold, letterSpacing = (g.rDial * 0.010f / density).sp),
-        Offset(g.center.x, g.center.y - g.rDial * 0.12f))
+        Offset(g.center.x, g.center.y - g.rDial * 0.32f))
 
     drawCenteredText(measurer, "1884",
         TextStyle(color = DialPalette.Numeral.copy(alpha = 0.9f),
             fontSize = (g.rDial * 0.040f / density).sp, fontWeight = FontWeight.Medium,
-            letterSpacing = (g.rDial * 0.018f / density).sp),
-        Offset(g.center.x, g.center.y - g.rDial * 0.040f))
+            letterSpacing = (g.rDial * 0.020f / density).sp),
+        Offset(g.center.x, g.center.y - g.rDial * 0.235f))
 
     drawCenteredText(measurer, "NAVITIMER",
-        TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.058f / density).sp,
-            fontWeight = FontWeight.SemiBold, letterSpacing = (g.rDial * 0.010f / density).sp),
-        Offset(g.center.x, g.center.y + g.rDial * 0.018f))
+        TextStyle(color = DialPalette.Numeral, fontSize = (g.rDial * 0.060f / density).sp,
+            fontWeight = FontWeight.SemiBold, letterSpacing = (g.rDial * 0.012f / density).sp),
+        Offset(g.center.x, g.center.y - g.rDial * 0.165f))
 
-    drawCenteredText(measurer, "SWISS  MADE",
-        TextStyle(color = DialPalette.Numeral.copy(alpha = 0.9f),
-            fontSize = (g.rDial * 0.034f / density).sp, fontWeight = FontWeight.Medium,
-            letterSpacing = (g.rDial * 0.008f / density).sp),
-        Offset(g.center.x, g.center.y + g.rDial * 0.83f))
+    // SWISS / MADE flank the 6 o'clock hour marker. Drawn here at the
+    // same y as the marker midpoint; the marker itself is in
+    // drawDialHourIndices.
+    val swissY = g.center.y + g.rDial * 0.835f
+    val swissStyle = TextStyle(color = DialPalette.Numeral.copy(alpha = 0.9f),
+        fontSize = (g.rDial * 0.034f / density).sp, fontWeight = FontWeight.Medium,
+        letterSpacing = (g.rDial * 0.008f / density).sp)
+    val swissL = measurer.measure(androidx.compose.ui.text.AnnotatedString("SWISS"), swissStyle)
+    val madeL = measurer.measure(androidx.compose.ui.text.AnnotatedString("MADE"), swissStyle)
+    drawText(textLayoutResult = swissL,
+        topLeft = Offset(g.center.x - g.rDial * 0.10f - swissL.size.width, swissY))
+    drawText(textLayoutResult = madeL,
+        topLeft = Offset(g.center.x + g.rDial * 0.10f, swissY))
 }
 
 private fun DrawScope.drawCenteredText(
@@ -613,8 +628,8 @@ private fun DrawScope.drawBreitlingWings(c: Offset, scale: Float) {
 // =============================================================== sub-dials
 
 private fun DrawScope.drawSubDialFaces(g: DialGeom, measurer: TextMeasurer) {
-    val subR = g.rDial * 0.22f
-    val offset = g.rDial * 0.42f
+    val subR = g.rDial * 0.26f
+    val offset = g.rDial * 0.45f
     // 9 o'clock — small running seconds (60-second face); labels at 60/20/40
     drawSubDialFace(
         center = Offset(g.center.x - offset, g.center.y), radius = subR,
@@ -712,8 +727,8 @@ private fun DrawScope.drawSubDialHand(
 }
 
 private fun DrawScope.drawSubDialSecondsHand(g: DialGeom, now: LocalDateTime) {
-    val subR = g.rDial * 0.22f
-    val offset = g.rDial * 0.42f
+    val subR = g.rDial * 0.26f
+    val offset = g.rDial * 0.45f
     val secondsCenter = Offset(g.center.x - offset, g.center.y)
     val s = now.second + now.nanosecond / 1e9
     val angle = (s * 6.0).toFloat()
@@ -721,8 +736,8 @@ private fun DrawScope.drawSubDialSecondsHand(g: DialGeom, now: LocalDateTime) {
 }
 
 private fun DrawScope.drawChronoMinAndHourHands(g: DialGeom, chronoMs: Long) {
-    val subR = g.rDial * 0.22f
-    val offset = g.rDial * 0.42f
+    val subR = g.rDial * 0.26f
+    val offset = g.rDial * 0.45f
     val totalSec = chronoMs / 1000.0
     val minutes = (totalSec / 60.0) % 30.0           // 30-min counter
     val hours = (totalSec / 3600.0) % 12.0           // 12-hr counter
@@ -743,42 +758,63 @@ private fun DrawScope.drawChronoMinAndHourHands(g: DialGeom, chronoMs: Long) {
 // =============================================================== applied hour indices
 
 private fun DrawScope.drawDialHourIndices(g: DialGeom) {
-    val skip = setOf(3, 6, 9)
-    for (h in 0 until 12) {
-        if (h in skip) continue
-        val angle = h * 30.0 - 90.0
+    // Sub-dial outer edge is at offset 0.45 + radius 0.26 = 0.71 r from
+    // dial centre. Hour markers at 3, 6, 9 are TRUNCATED so they sit
+    // entirely outside their adjacent sub-dial.
+    val rOut = g.rDial * 0.95f             // outer end (inner edge of chapter ring)
+    val rInFull = g.rDial * 0.62f          // inner end for "long" markers (1, 2, 4, 5, 7, 8, 10, 11)
+    val rInShort = g.rDial * 0.74f         // inner end for "short" markers at 3, 6, 9
+    val width = g.rDial * 0.022f
+
+    fun drawMarker(angle: Double, rIn: Float, rOut: Float, w: Float, xOffset: Float = 0f) {
         val rad = angle * PI / 180.0
         val cosA = cos(rad).toFloat()
         val sinA = sin(rad).toFloat()
-        // Per the photo: indices reach almost to the inner edge of the
-        // chapter ring (~0.95 r), starting just outside the brand text /
-        // sub-dial cores at ~0.62 r. About twice as long as before.
-        val rIn = g.rDial * 0.62f
-        val rOut = g.rDial * 0.95f
-        val width = g.rDial * 0.022f
-        fun batonPath(w: Float): Path {
-            val perpX = (-sinA) * w
-            val perpY = cosA * w
-            val tipX = g.center.x + (rOut * cos(rad)).toFloat()
-            val tipY = g.center.y + (rOut * sin(rad)).toFloat()
-            val baseX = g.center.x + (rIn * cos(rad)).toFloat()
-            val baseY = g.center.y + (rIn * sin(rad)).toFloat()
-            return Path().apply {
-                moveTo(tipX + perpX, tipY + perpY)
-                lineTo(tipX - perpX, tipY - perpY)
-                lineTo(baseX - perpX, baseY - perpY)
-                lineTo(baseX + perpX, baseY + perpY)
-                close()
-            }
+        val perpX = (-sinA) * w
+        val perpY = cosA * w
+        val tipX = g.center.x + (rOut * cos(rad)).toFloat() + xOffset * (-sinA)
+        val tipY = g.center.y + (rOut * sin(rad)).toFloat() + xOffset * cosA
+        val baseX = g.center.x + (rIn * cos(rad)).toFloat() + xOffset * (-sinA)
+        val baseY = g.center.y + (rIn * sin(rad)).toFloat() + xOffset * cosA
+        val path = Path().apply {
+            moveTo(tipX + perpX, tipY + perpY)
+            lineTo(tipX - perpX, tipY - perpY)
+            lineTo(baseX - perpX, baseY - perpY)
+            lineTo(baseX + perpX, baseY + perpY)
+            close()
         }
-        // Bright polished chrome baton, single colour (no cream lume).
-        drawPath(path = batonPath(width), color = DialPalette.Hand)
-        // Thin slightly darker centre line for the chamfered 3D look the
-        // photo shows (a single highlight stripe down the middle).
-        val centreW = width * 0.20f
-        drawPath(path = batonPath(centreW), color = DialPalette.HandFrame)
-        // Dark edge outline so the index reads against the green dial.
-        drawPath(path = batonPath(width), color = Color(0xFF1A1A1A), style = Stroke(width = 0.9f))
+        drawPath(path = path, color = DialPalette.Hand)
+        // Centre highlight stripe (chamfered 3D look)
+        val centreW = w * 0.20f
+        val centrePath = Path().apply {
+            val cpX = (-sinA) * centreW
+            val cpY = cosA * centreW
+            moveTo(tipX + cpX, tipY + cpY)
+            lineTo(tipX - cpX, tipY - cpY)
+            lineTo(baseX - cpX, baseY - cpY)
+            lineTo(baseX + cpX, baseY + cpY)
+            close()
+        }
+        drawPath(path = centrePath, color = DialPalette.HandFrame)
+        drawPath(path = path, color = Color(0xFF1A1A1A), style = Stroke(width = 0.9f))
+    }
+
+    for (h in 0 until 12) {
+        val angle = h * 30.0 - 90.0
+        when (h) {
+            0 -> {
+                // 12 o'clock — DOUBLE baton marker, slightly shorter than the
+                // single ones, with a small horizontal gap between the two.
+                val gap = g.rDial * 0.030f
+                val shortIn = g.rDial * 0.66f
+                val shortOut = g.rDial * 0.92f
+                drawMarker(angle, shortIn, shortOut, width * 0.85f, xOffset = -gap)
+                drawMarker(angle, shortIn, shortOut, width * 0.85f, xOffset = +gap)
+            }
+            3, 9 -> drawMarker(angle, rInShort, rOut, width)   // short, sub-dial-truncated
+            6 -> drawMarker(angle, rInShort, rOut, width)      // short — SWISS / MADE flank
+            else -> drawMarker(angle, rInFull, rOut, width)
+        }
     }
 }
 
@@ -790,10 +826,12 @@ private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
     val hFull = (now.hour % 12) + mFull / 60.0
     val hourAngle = (hFull * 30.0).toFloat()
     val minAngle = (mFull * 6.0).toFloat()
-    drawBatonHand(g.center, hourAngle, length = g.rDial * 0.42f,
-        outerW = g.rDial * 0.045f, innerW = g.rDial * 0.025f)
-    drawBatonHand(g.center, minAngle, length = g.rDial * 0.62f,
-        outerW = g.rDial * 0.035f, innerW = g.rDial * 0.018f)
+    // Hand lengths per photo: hour reaches the sub-dial markers (~0.55 r),
+    // minute reaches almost to the chapter ring inner edge (~0.85 r).
+    drawBatonHand(g.center, hourAngle, length = g.rDial * 0.55f,
+        outerW = g.rDial * 0.048f, innerW = g.rDial * 0.028f)
+    drawBatonHand(g.center, minAngle, length = g.rDial * 0.85f,
+        outerW = g.rDial * 0.038f, innerW = g.rDial * 0.020f)
 }
 
 /**
