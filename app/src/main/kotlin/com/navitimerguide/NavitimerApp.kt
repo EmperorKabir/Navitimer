@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -27,7 +29,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.navitimerguide.controls.Presets
+import com.navitimerguide.controls.CurvedPresets
 import com.navitimerguide.dial.WatchDial
 import com.navitimerguide.dial.bezelDragRotation
 import com.navitimerguide.equations.BezelInputs
@@ -57,6 +59,8 @@ fun NavitimerApp() {
                         rotation = rotation,
                         chronoState = chronoState,
                         chronoMillisProvider = vm::currentChronoMs,
+                        outerText = outerText,
+                        innerText = innerText,
                         vm = vm
                     )
                     Spacer(Modifier.size(12.dp))
@@ -66,13 +70,6 @@ fun NavitimerApp() {
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        BezelInputs(
-                            outer = outerText,
-                            inner = innerText,
-                            onOuterChange = vm::setOuterText,
-                            onInnerChange = vm::setInnerText,
-                            onCommit = vm::commitInputs
-                        )
                         FloatingEquations(
                             rotationDegrees = rotation,
                             outer = outerText,
@@ -85,23 +82,18 @@ fun NavitimerApp() {
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(12.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     DialColumn(
                         modifier = Modifier.fillMaxWidth(),
                         rotation = rotation,
                         chronoState = chronoState,
                         chronoMillisProvider = vm::currentChronoMs,
+                        outerText = outerText,
+                        innerText = innerText,
                         vm = vm
-                    )
-                    BezelInputs(
-                        outer = outerText,
-                        inner = innerText,
-                        onOuterChange = vm::setOuterText,
-                        onInnerChange = vm::setInnerText,
-                        onCommit = vm::commitInputs
                     )
                     FloatingEquations(
                         rotationDegrees = rotation,
@@ -120,11 +112,21 @@ private fun DialColumn(
     rotation: Double,
     chronoState: com.navitimerguide.viewmodel.ChronoState,
     chronoMillisProvider: () -> Long,
+    outerText: String,
+    innerText: String,
     vm: DialViewModel
 ) {
     val haptics = LocalHapticFeedback.current
 
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        // Curved preset chips arranged in a gentle arc above the watch.
+        CurvedPresets(
+            onSetAngle = vm::setRotation,
+            onReset = vm::reset,
+            modifier = Modifier.fillMaxWidth().height(60.dp)
+        )
+
+        // Watch box — dial + tap targets + bezel inputs overlaid bottom-left.
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
@@ -138,9 +140,7 @@ private fun DialColumn(
                 chronoMillisProvider = chronoMillisProvider,
                 modifier = Modifier.fillMaxSize()
             )
-            // Tap targets aligned with the new ANGLED pusher positions:
-            //   top pusher cap centre ≈ (0.91 side, 0.26 side)  — 2 o'clock
-            //   bot pusher cap centre ≈ (0.91 side, 0.74 side)  — 4 o'clock
+            // Top pusher tap target (start / stop)
             Box(modifier = Modifier
                 .offset(x = side * 0.85f, y = side * 0.20f)
                 .size(width = side * 0.13f, height = side * 0.13f)
@@ -148,6 +148,7 @@ private fun DialColumn(
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     vm.chronoStartStop()
                 })
+            // Bottom pusher tap target (reset)
             Box(modifier = Modifier
                 .offset(x = side * 0.85f, y = side * 0.67f)
                 .size(width = side * 0.13f, height = side * 0.13f)
@@ -155,8 +156,23 @@ private fun DialColumn(
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     vm.chronoReset()
                 })
+
+            // Bezel inputs overlaid in the bottom-LEFT corner of the watch
+            // (compact, no heading) — frees the space below the dial for
+            // the live equations panel to start higher.
+            Box(modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = side * 0.02f, y = -side * 0.02f)
+                .width(side * 0.30f)
+            ) {
+                BezelInputs(
+                    outer = outerText,
+                    inner = innerText,
+                    onOuterChange = vm::setOuterText,
+                    onInnerChange = vm::setInnerText,
+                    onCommit = vm::commitInputs
+                )
+            }
         }
-        Spacer(Modifier.size(10.dp))
-        Presets(onSetAngle = vm::setRotation, onReset = vm::reset, modifier = Modifier.fillMaxWidth())
     }
 }

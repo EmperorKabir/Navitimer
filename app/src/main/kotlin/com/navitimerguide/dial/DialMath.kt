@@ -41,14 +41,15 @@ object DialMath {
     const val RED_10: Double = 10.0
     const val RED_36: Double = 36.0
     const val RED_60_MPH: Double = 60.0
-    // The "35" and "40" numerals on the inner scale are just regular bezel
-    // values — they are NOT the NAUT / STAT marker positions. The actual
-    // red triangles sit at conversion-factor-derived positions just BEFORE
-    // those integers:  NAUT ≈ 34.02 (just before 35); STAT ≈ 39.15 (just
-    // before 40); KM marker between 60 and 65, at ≈ 63.
-    const val KM_MARKER: Double = 63.0
-    val STAT_MARKER: Double = KM_MARKER / MILE_TO_KM   // ~39.15
-    val NAUT_MARKER: Double = KM_MARKER / NAUT_TO_KM   // ~34.02
+    // Red NAUT / STAT triangles sit at scale values 33 and 38 respectively
+    // (per photo image 26 — the "35" and "40" numerals are unrelated
+    // regular bezel labels). KM is derived from these so the conversion
+    // ratios are accurate to within ~0.05 % of the true factors:
+    //   KM / STAT = 61.15 / 38 = 1.6092 (vs 1.609344 ✓)
+    //   KM / NAUT = 61.15 / 33 = 1.8530 (vs 1.852    ✓)
+    const val NAUT_MARKER: Double = 33.0
+    const val STAT_MARKER: Double = 38.0
+    const val KM_MARKER: Double = 61.15
 
     /** Wrap an angle to [0, 360). */
     fun wrap360(angle: Double): Double {

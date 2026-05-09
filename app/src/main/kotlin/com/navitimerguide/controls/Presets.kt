@@ -2,82 +2,86 @@ package com.navitimerguide.controls
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.navitimerguide.dial.DialMath
 
 /**
- * One-tap presets: each chip rotates the bezel to a useful alignment with
- * a single tap. Wraps onto multiple lines (FlowRow) so long lists don't
- * scroll horizontally.
- *
- * Labels are written for non-experts: each chip says what the alignment
- * *does*, not the technical "outer→inner" form.
+ * Preset chips arranged in a gentle curve along the upper edge of the
+ * watch — the chip in the middle sits highest (at 12 o'clock), chips
+ * on the sides drop down to follow the top arc. Heading removed.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun Presets(
+fun CurvedPresets(
     onSetAngle: (Double) -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptics = LocalHapticFeedback.current
+    val items = listOf(
+        "Reset" to onReset,
+        "× 2.5" to { onSetAngle(DialMath.alignRotation(25.0, 10.0)) },
+        "× 3.5" to { onSetAngle(DialMath.alignRotation(35.0, 10.0)) },
+        "Hours" to { onSetAngle(DialMath.alignRotation(40.0, 10.0)) },
+        "mi → km" to { onSetAngle(DialMath.alignRotation(10.0, DialMath.STAT_MARKER)) },
+        "nm → km" to { onSetAngle(DialMath.alignRotation(10.0, DialMath.NAUT_MARKER)) }
+    )
 
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-    ) {
-        FlowRow(
+    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(64.dp)) {
+        val w = maxWidth
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Top
         ) {
-            chip("Reset") {
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onReset()
-            }
-            chip("Multiply by 2.5") {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSetAngle(DialMath.alignRotation(25.0, 10.0))
-            }
-            chip("Multiply by 3.5") {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSetAngle(DialMath.alignRotation(35.0, 10.0))
-            }
-            chip("Hours → minutes & seconds") {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSetAngle(DialMath.alignRotation(40.0, 10.0))  // 4-hour worked example
-            }
-            chip("Miles → kilometres") {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSetAngle(DialMath.alignRotation(10.0, DialMath.STAT_MARKER))
-            }
-            chip("Nautical miles → km") {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSetAngle(DialMath.alignRotation(10.0, DialMath.NAUT_MARKER))
+            items.forEachIndexed { i, (label, onClick) ->
+                val n = items.size
+                val t = i.toDouble() / (n - 1).coerceAtLeast(1) - 0.5
+                // Parabolic drop: middle chips at y=0, sides drop down ~16dp.
+                val drop = (t * t * 64.0).dp
+                AssistChip(
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onClick()
+                    },
+                    label = {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
+                        )
+                    },
+                    modifier = Modifier.offset(y = drop),
+                    colors = AssistChipDefaults.assistChipColors()
+                )
             }
         }
     }
 }
 
+// Backward-compatible name kept in case other code imports it.
 @Composable
-private fun chip(label: String, onClick: () -> Unit) {
-    AssistChip(onClick = onClick, label = { Text(label) })
-}
+fun Presets(
+    onSetAngle: (Double) -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
+) = CurvedPresets(onSetAngle, onReset, modifier)

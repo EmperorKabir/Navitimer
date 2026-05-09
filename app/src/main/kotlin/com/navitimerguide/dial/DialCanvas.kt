@@ -235,12 +235,11 @@ private val INNER_LABEL_MAP: Map<Int, String> =
     mapOf(36 to "36", 70 to "7", 80 to "8", 90 to "9")
     // 60 intentionally absent — replaced by the white-arrow MPH index.
 
-/** Integer scale values where a RED TRIANGLE (or white arrow at inner 60)
- *  replaces the regular WHITE tick. Note 35 and 40 are NOT in here — those
- *  are regular bezel numerals; the NAUT / STAT triangles sit at fractional
- *  positions ≈ 34.02 / 39.15 (next to but not on the integer ticks). */
+/** Integer scale values where a RED TRIANGLE (or the white arrow at inner
+ *  60) replaces the regular WHITE tick. NAUT triangle is at scale 33;
+ *  STAT triangle is at scale 38 — both replace their white ticks. */
 private val OUTER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 36, 60)
-private val INNER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 36, 60)
+private val INNER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 33, 36, 38, 60)
 /** Inner numerals drawn in RED — the unit index (10) and the 60×60=3600
  *  time-conversion index (36). 35 and 40 are regular WHITE numerals. */
 private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10, 36)
@@ -249,15 +248,13 @@ private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10, 36)
 
 private enum class TickRank { TALL, MEDIUM, SHORT }
 
-/** Step between ticks at scale-value [v], following the slide-rule's progressive subdivision.
- *  25..100 is uniform (every integer) so the 50→60 region matches the
- *  40→50 region in style — per the user's note about image 25 that the
- *  marker style was changing wrongly between 50 and 60.
- */
+/** Step between ticks at scale-value [v]. Half-step ticks are present
+ *  across the whole 25..100 range so 40→50 and 50→60 read the same way
+ *  (per photo image 26: every integer + every half-step in this range). */
 private fun stepAt(v: Double): Double = when {
     v < 20.0 -> 0.1
     v < 25.0 -> 0.2
-    else -> 1.0
+    else -> 0.5
 }
 
 private fun isInteger(v: Double): Boolean = kotlin.math.abs(v - round(v)) < 1e-6
@@ -268,7 +265,10 @@ private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
     return when {
         v < 20.0 -> if (isHalfStep(v)) TickRank.MEDIUM else TickRank.SHORT
         v < 25.0 -> TickRank.SHORT
-        else -> TickRank.MEDIUM   // every integer in 25..100 is the same MEDIUM rank
+        // 25..100: integers are MEDIUM (full-length internal ticks),
+        // half-steps are SHORT — gives the alternating long/short pattern
+        // visible in the photo across both 40→50 and 50→60.
+        else -> if (isInteger(v)) TickRank.MEDIUM else TickRank.SHORT
     }
 }
 
@@ -542,15 +542,19 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     // White MPH arrow at inner 60 — replaces the red triangle (per image 22).
     val mphAngle = DialMath.drawAngleDeg(60.0)
     drawMphArrow(g, mphAngle)
+    // "MPH" text BELOW the arrow, in WHITE (not red), with a tiny gap so
+    // the text doesn't touch the arrow's base. Drawn just inside the
+    // chapter-ring inner edge, on the green dial.
+    val mphTextR = g.rChapterInner - g.rOuter * 0.028f
     drawScaleNumeralUpright(
         measurer = measurer,
         text = "MPH",
         angleDegFromTop = mphAngle.toFloat(),
-        radius = markerLabelR,
+        radius = mphTextR,
         center = g.center,
-        color = DialPalette.Red,
-        sizeSp = (g.rOuter * 0.038f / density).sp,
-        bold = true
+        color = DialPalette.Numeral,
+        sizeSp = (g.rOuter * 0.034f / density).sp,
+        bold = false
     )
 }
 

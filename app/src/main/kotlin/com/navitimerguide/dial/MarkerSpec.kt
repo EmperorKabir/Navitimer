@@ -31,12 +31,11 @@ object Markers {
         // image 23.
         Marker(DialMath.STAT_MARKER, ScaleSide.INNER, MarkerStyle.TRIANGLE_OUTWARD, null, isRed = true),
         Marker(DialMath.NAUT_MARKER, ScaleSide.INNER, MarkerStyle.TRIANGLE_OUTWARD, null, isRed = true),
-        // "NAUT." and "STAT." text labels positioned BEFORE their triangles
-        // on the chapter ring, so the inner reads "NAUT. <triangle> 35"
-        // and "STAT. <triangle> 40" with 35/40 being the regular white
-        // bezel numerals.
-        Marker(32.0, ScaleSide.INNER, MarkerStyle.TEXT, "NAUT.", isRed = true),
-        Marker(37.0, ScaleSide.INNER, MarkerStyle.TEXT, "STAT.", isRed = true),
+        // "NAUT." text is centred at scale 34 (between the NAUT triangle at
+        // 33 and the white "35" numeral at 35), so it reads as
+        // "NAUT. 35" continuously. Same for STAT. between 38 and 40.
+        Marker(34.0, ScaleSide.INNER, MarkerStyle.TEXT, "NAUT.", isRed = true),
+        Marker(39.0, ScaleSide.INNER, MarkerStyle.TEXT, "STAT.", isRed = true),
 
         // Outer rotating scale ---------------------------------------------
         Marker(DialMath.RED_60_MPH, ScaleSide.OUTER, MarkerStyle.TRIANGLE_INWARD, null, isRed = true),
