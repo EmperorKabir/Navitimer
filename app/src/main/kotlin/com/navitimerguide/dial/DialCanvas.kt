@@ -25,6 +25,8 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
@@ -240,7 +242,9 @@ private val INNER_LABEL_MAP: Map<Int, String> =
  *  60) replaces the regular WHITE tick. NAUT triangle is at scale 33;
  *  STAT triangle is at scale 38 — both replace their white ticks. */
 private val OUTER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 36, 60)
-private val INNER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 33, 36, 38, 60)
+// 61 is added because the inner thin tick at integer 61 is replaced by
+// the small red KM triangle (drawn explicitly below).
+private val INNER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 33, 36, 38, 60, 61)
 /** Inner numerals drawn in RED — only the unit index (10) now. */
 private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10)
 
@@ -248,18 +252,15 @@ private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10)
 
 private enum class TickRank { TALL, MEDIUM, SHORT }
 
-/** Step between ticks at scale-value [v]. Five tiers transcribed from
+/** Step between ticks at scale-value [v]. Four tiers transcribed from
  *  the user's definitive spec (images 29..33 of the real watch):
- *   - 10..11           → 0.2  (four thin between thick 10 and thick 11)
- *   - 11..12           → 0.1  (four thin between each pair of thick marks
- *                              at 11 / 11.5 / 12 — note the asymmetric
- *                              jump in density vs 10..11)
+ *   - 10..12           → 0.1  (four thin between each pair of thick marks
+ *                              at 10 / 10.5 / 11 / 11.5 / 12)
  *   - 12..25           → 0.2  (four thin between thick integers)
  *   - 25..60           → 0.5  (long thin integers + short thin halves)
  *   - 60..100          → 1.0  (integer marks only — no halves on this side)
  */
 private fun stepAt(v: Double): Double = when {
-    v < 11.0 -> 0.2
     v < 12.0 -> 0.1
     v < 25.0 -> 0.2
     v < 60.0 -> 0.5
@@ -268,16 +269,25 @@ private fun stepAt(v: Double): Double = when {
 
 private fun isInteger(v: Double): Boolean = kotlin.math.abs(v - round(v)) < 1e-6
 
-/** Unlabelled scale values that still render as long+thick (TALL rank).
- *  11.5 is the only such mark on the Navitimer per the user's spec. */
-private val EXTRA_THICK_VALUES: Set<Double> = setOf(11.5)
+/** Unlabelled scale values that still render as long+thick (TALL rank) on
+ *  BOTH bezels — the half-mark thicks at 10.5 and 11.5 in the dense unit
+ *  region. */
+private val EXTRA_THICK_VALUES: Set<Double> = setOf(10.5, 11.5)
 private fun isExtraThick(v: Double): Boolean =
     EXTRA_THICK_VALUES.any { kotlin.math.abs(v - it) < 1e-6 }
 
-private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
-    // TALL = long + thick. Reserved for labelled values (numerals) plus the
-    // single unlabelled thick mark at 11.5.
-    if (isLabelled || isExtraThick(v)) return TickRank.TALL
+/** Inner-bezel-only thick integers — every-five values that are NOT
+ *  labelled on the inner ring (60/65/75/85/95 sit between the labelled
+ *  inner numerals 7/8/9 and the MPH index, but still render as thick
+ *  marks on the real watch). 60 is excluded because it's already drawn
+ *  as the MPH white arrow. */
+private val INNER_EXTRA_THICK_INTEGERS: Set<Int> = setOf(65, 75, 85, 95)
+
+private fun tickRank(v: Double, isThick: Boolean): TickRank {
+    // TALL = long + thick. The caller decides what counts as thick — for
+    // OUTER it's labelled values + the EXTRA_THICK_VALUES half-marks; for
+    // INNER it's the same plus 65/75/85/95.
+    if (isThick) return TickRank.TALL
     return when {
         // 10..25 sub-marks (the 0.1 / 0.2 fifth- and tenth-divisions) all
         // render SHORT — short + thin.
@@ -373,7 +383,8 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
         val isInt = isInteger(v)
         val skipTick = isInt && intV in OUTER_TICK_REPLACED_BY_TRIANGLE
         val isLabelled = isInt && intV in OUTER_LABEL_SET
-        val rank = tickRank(v, isLabelled)
+        val isThick = isLabelled || isExtraThick(v)
+        val rank = tickRank(v, isThick)
         val angle = DialMath.drawAngleDeg(v)
         val rad = angle * PI / 180.0
 
@@ -466,7 +477,9 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         val isInt = isInteger(v)
         val skipTick = isInt && intV in INNER_TICK_REPLACED_BY_TRIANGLE
         val isLabelled = isInt && intV in INNER_LABEL_MAP
-        val rank = tickRank(v, isLabelled)
+        val isThick = isLabelled || isExtraThick(v) ||
+            (isInt && intV in INNER_EXTRA_THICK_INTEGERS)
+        val rank = tickRank(v, isThick)
         val angle = DialMath.drawAngleDeg(v)
         val rad = angle * PI / 180.0
 
@@ -566,6 +579,16 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     val red36Angle = DialMath.drawAngleDeg(36.0)
     drawTriangleAtAngle(
         center = g.center, angleDeg = red36Angle.toFloat(),
+        radius = triangleBaseR, size = triangleSizeSmall,
+        color = DialPalette.Red, inward = false
+    )
+
+    // Small red KM triangle at inner 61 — replaces the thin tick at 61
+    // (per user spec). The "KM" red text label is drawn separately by
+    // the markers loop above, sitting just above this triangle.
+    val kmAngle = DialMath.drawAngleDeg(DialMath.KM_MARKER)
+    drawTriangleAtAngle(
+        center = g.center, angleDeg = kmAngle.toFloat(),
         radius = triangleBaseR, size = triangleSizeSmall,
         color = DialPalette.Red, inward = false
     )
@@ -1287,6 +1310,15 @@ private fun DrawScope.drawAngledChronoControl(
 
 // =============================================================== text + triangle helpers
 
+// Saira Condensed — the closest open-source approximation to the
+// proprietary Breitling Navitimer typeface (tall, narrow, condensed
+// sans-serif with industrial / aviation feel). Bundled in res/font.
+private val BezelFont = FontFamily(
+    Font(R.font.saira_condensed_medium, FontWeight.Medium),
+    Font(R.font.saira_condensed_semibold, FontWeight.SemiBold),
+    Font(R.font.saira_condensed_bold, FontWeight.Bold)
+)
+
 private fun DrawScope.drawScaleNumeralUpright(
     measurer: TextMeasurer,
     text: String,
@@ -1303,6 +1335,7 @@ private fun DrawScope.drawScaleNumeralUpright(
     val l = measurer.measure(
         androidx.compose.ui.text.AnnotatedString(text),
         TextStyle(color = color, fontSize = sizeSp,
+            fontFamily = BezelFont,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium)
     )
     val rot = angleDegFromTop + 90f
