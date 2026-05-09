@@ -34,10 +34,10 @@ object Markers {
         // "NAUT." text is centred at scale 34 (between the NAUT triangle at
         // 33 and the white "35" numeral at 35), so it reads as
         // "NAUT. 35" continuously. Same for STAT. between 38 and 40.
-        // Label CENTRES sit BEFORE the triangles so the period of each
-        // label lands close to its triangle's angular position.
-        Marker(31.0, ScaleSide.INNER, MarkerStyle.TEXT, "NAUT.", isRed = true),
-        Marker(36.0, ScaleSide.INNER, MarkerStyle.TEXT, "STAT.", isRed = true),
+        // Label CENTRE sits AT the triangle (same angular position) so the
+        // text reads UNDER its red triangle on the chapter ring.
+        Marker(33.0, ScaleSide.INNER, MarkerStyle.TEXT, "NAUT.", isRed = true),
+        Marker(38.0, ScaleSide.INNER, MarkerStyle.TEXT, "STAT.", isRed = true),
 
         // Outer rotating scale ---------------------------------------------
         Marker(DialMath.RED_60_MPH, ScaleSide.OUTER, MarkerStyle.TRIANGLE_INWARD, null, isRed = true),

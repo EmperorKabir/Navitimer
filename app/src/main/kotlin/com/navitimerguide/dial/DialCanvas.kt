@@ -248,12 +248,16 @@ private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10, 36)
 
 private enum class TickRank { TALL, MEDIUM, SHORT }
 
-/** Step between ticks at scale-value [v]. Half-step ticks are present
- *  across the whole 25..100 range so 40→50 and 50→60 read the same way
- *  (per photo image 26: every integer + every half-step in this range). */
+/** Step between ticks at scale-value [v].
+ *  Per the user's instruction:
+ *   - 10..12: every 0.1 (the densely sub-divided unit-index region)
+ *   - 12..25: integer ticks ONLY — half markers are removed in this range
+ *   - 25..100: every 0.5 — half markers and integer markers (alternating
+ *     short / medium heights as the photo shows).
+ */
 private fun stepAt(v: Double): Double = when {
-    v < 20.0 -> 0.1
-    v < 25.0 -> 0.2
+    v < 12.0 -> 0.1
+    v < 25.0 -> 1.0
     else -> 0.5
 }
 
@@ -263,11 +267,8 @@ private fun isHalfStep(v: Double): Boolean = kotlin.math.abs((v * 2.0) - round(v
 private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
     if (isLabelled) return TickRank.TALL
     return when {
-        v < 20.0 -> if (isHalfStep(v)) TickRank.MEDIUM else TickRank.SHORT
-        v < 25.0 -> TickRank.SHORT
-        // 25..100: integers are MEDIUM (full-length internal ticks),
-        // half-steps are SHORT — gives the alternating long/short pattern
-        // visible in the photo across both 40→50 and 50→60.
+        v < 12.0 -> if (isHalfStep(v)) TickRank.MEDIUM else TickRank.SHORT
+        v < 25.0 -> TickRank.MEDIUM   // every integer tick (no sub-ticks here)
         else -> if (isInteger(v)) TickRank.MEDIUM else TickRank.SHORT
     }
 }

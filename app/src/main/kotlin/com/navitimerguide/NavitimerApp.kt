@@ -126,8 +126,11 @@ private fun DialColumn(
             modifier = Modifier.fillMaxWidth().height(60.dp)
         )
 
-        // Watch box — dial + tap targets only. Inputs sit BELOW the box
-        // so they no longer overlap any sub-dial.
+        // Watch box — dial + pusher tap targets + tiny inputs in the
+        // bottom-left CORNER GAP (the empty triangle between the round
+        // dial and the box edges). They don't overlap the dial because
+        // the watch radius is 0.44 of the box; the bottom-left corner has
+        // empty space the inputs slot into.
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
@@ -157,25 +160,23 @@ private fun DialColumn(
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     vm.chronoReset()
                 })
-        }
 
-        // Compact horizontal Outer/Inner inputs row, aligned LEFT under
-        // the watch. Total width capped so it doesn't span the whole
-        // page — the right side stays clear so equations can flow up.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 6.dp),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            BezelInputs(
-                outer = outerText,
-                inner = innerText,
-                onOuterChange = vm::setOuterText,
-                onInnerChange = vm::setInnerText,
-                onCommit = vm::commitInputs,
-                modifier = Modifier.width(280.dp)
-            )
+            // Tiny inputs in the bottom-LEFT corner gap. Stacked Outer /
+            // Inner; total width ≤ 0.22 of side so they fit in the
+            // triangular empty space between the watch circle and the
+            // bottom-left edge of the box.
+            Box(modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 2.dp, bottom = 2.dp)
+            ) {
+                BezelInputs(
+                    outer = outerText,
+                    inner = innerText,
+                    onOuterChange = vm::setOuterText,
+                    onInnerChange = vm::setInnerText,
+                    onCommit = vm::commitInputs
+                )
+            }
         }
     }
 }
