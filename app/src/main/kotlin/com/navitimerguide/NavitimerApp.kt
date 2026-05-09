@@ -126,7 +126,8 @@ private fun DialColumn(
             modifier = Modifier.fillMaxWidth().height(60.dp)
         )
 
-        // Watch box — dial + tap targets + bezel inputs overlaid bottom-left.
+        // Watch box — dial + tap targets only. Inputs sit BELOW the box
+        // so they no longer overlap any sub-dial.
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
@@ -156,23 +157,25 @@ private fun DialColumn(
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     vm.chronoReset()
                 })
+        }
 
-            // Bezel inputs overlaid in the bottom-LEFT corner of the watch
-            // (compact, no heading) — frees the space below the dial for
-            // the live equations panel to start higher.
-            Box(modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = side * 0.02f, y = -side * 0.02f)
-                .width(side * 0.30f)
-            ) {
-                BezelInputs(
-                    outer = outerText,
-                    inner = innerText,
-                    onOuterChange = vm::setOuterText,
-                    onInnerChange = vm::setInnerText,
-                    onCommit = vm::commitInputs
-                )
-            }
+        // Compact horizontal Outer/Inner inputs row, aligned LEFT under
+        // the watch. Total width capped so it doesn't span the whole
+        // page — the right side stays clear so equations can flow up.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            BezelInputs(
+                outer = outerText,
+                inner = innerText,
+                onOuterChange = vm::setOuterText,
+                onInnerChange = vm::setInnerText,
+                onCommit = vm::commitInputs,
+                modifier = Modifier.width(280.dp)
+            )
         }
     }
 }

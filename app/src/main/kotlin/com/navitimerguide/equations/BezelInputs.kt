@@ -36,11 +36,12 @@ fun BezelInputs(
     onCommit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Row(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
-            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         TinyField(
             value = outer,
@@ -48,7 +49,7 @@ fun BezelInputs(
             onCommit = onCommit,
             label = "Outer",
             imeAction = ImeAction.Next,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.weight(1f)
         )
         TinyField(
             value = inner,
@@ -56,7 +57,7 @@ fun BezelInputs(
             onCommit = onCommit,
             label = "Inner",
             imeAction = ImeAction.Done,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.weight(1f)
         )
     }
 }

@@ -334,15 +334,16 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
     val ringMid = (g.rBezelOuter + g.rBezelInner) / 2f
     val ringWidth = g.rBezelOuter - g.rBezelInner
 
-    // OUTER bezel layering (per photo image 16, real watch order outside-in):
-    //   numerals at OUTER edge of bezel ring → ticks INWARD of numerals →
-    //   step gap → inner ring.
-    // Numerals occupy the outer ~30% of ring width; ticks occupy the inner ~70%.
-    val numeralR = ringMid + ringWidth * 0.32f          // numeral centre, outer half
-    val tickOuterR = ringMid + ringWidth * 0.10f         // tall-tick outer end, just inward of numerals
-    val tallLen = (tickOuterR - g.rBezelInner)           // ticks reach down to bezel inner edge
-    val medLen = tallLen * 0.62f
-    val shortLen = tallLen * 0.42f
+    // OUTER bezel layering. ALL ticks anchor at rBezelInner (the step
+    // boundary) and grow OUTWARD by length-per-rank. This way every tick
+    // — tall, medium, short — visually starts at the step, so when bezel
+    // rotation = 0 the outer tick at scale X "touches" the inner tick at
+    // scale X across the hairline step gap.
+    val numeralR = ringMid + ringWidth * 0.32f
+    val tickAnchor = g.rBezelInner
+    val tallLen = ringWidth * 0.55f       // longest — stops just below numerals
+    val medLen = ringWidth * 0.36f
+    val shortLen = ringWidth * 0.20f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -365,9 +366,10 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
                 TickRank.MEDIUM -> 1.2f
                 TickRank.SHORT -> 0.95f
             }
-            val tickInnerR = tickOuterR - len
-            val sx = g.center.x + (tickInnerR * cos(rad)).toFloat()
-            val sy = g.center.y + (tickInnerR * sin(rad)).toFloat()
+            // tick anchored at rBezelInner (the step), grows OUTWARD by len
+            val tickOuterR = tickAnchor + len
+            val sx = g.center.x + (tickAnchor * cos(rad)).toFloat()
+            val sy = g.center.y + (tickAnchor * sin(rad)).toFloat()
             val ex = g.center.x + (tickOuterR * cos(rad)).toFloat()
             val ey = g.center.y + (tickOuterR * sin(rad)).toFloat()
             drawLine(
@@ -421,15 +423,15 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     drawCircle(color = Color(0xFF1F1F1F), radius = g.rChapterOuter, center = g.center,
         style = Stroke(width = width * 0.05f))
 
-    // INNER chapter-ring layering (per the photo's outside-in order):
-    //   step gap → ticks at OUTER half of ring → numerals at INNER half (closest
-    //   to dial centre) → green dial.
-    val numeralR = g.rChapterInner + width * 0.20f       // numeral centre, inner half
-    val tickOuterR = g.rChapterOuter                     // ticks start at chapter outer edge (just under step)
-    val tickInnerEndForLong = numeralR + width * 0.18f   // long ticks stop just before numerals
-    val tallLen = (tickOuterR - tickInnerEndForLong)
-    val medLen = tallLen * 0.62f
-    val shortLen = tallLen * 0.42f
+    // INNER chapter ring. ALL ticks anchor at rChapterOuter (the step
+    // boundary) and grow INWARD by length-per-rank — so each inner tick
+    // touches the matching outer tick at the same scale value across the
+    // hairline step gap, regardless of tick rank.
+    val numeralR = g.rChapterInner + width * 0.20f
+    val tickOuterR = g.rChapterOuter
+    val tallLen = width * 0.55f
+    val medLen = width * 0.36f
+    val shortLen = width * 0.20f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
