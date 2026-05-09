@@ -427,10 +427,8 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
                 radius = numeralR,
                 center = g.center,
                 // Hand-drawn replica of the Navitimer numerals — see
-                // [NavitimerNumerals.kt]. Height is in pixels, set so the
-                // glyph reads at roughly the same visual size as the
-                // previous text-rendered numerals.
-                height = g.rOuter * 0.062f,
+                // [NavitimerNumerals.kt]. Height is in pixels.
+                height = g.rOuter * 0.075f,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
                 bold = true
             )
@@ -521,7 +519,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
                 angleDegFromTop = angle.toFloat(),
                 radius = numeralR,
                 center = g.center,
-                height = g.rOuter * 0.052f,
+                height = g.rOuter * 0.062f,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
                 bold = true
             )

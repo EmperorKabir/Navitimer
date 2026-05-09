@@ -21,10 +21,12 @@ import androidx.compose.ui.graphics.drawscope.rotate
  * (origin top-left). The drawing helpers translate / scale / rotate
  * that unit box into screen space.
  */
-private const val GLYPH_W = 0.55f   // narrow, condensed
+private const val GLYPH_W = 0.62f
 private const val GLYPH_H = 1.00f
-private const val STROKE_FRAC = 0.20f  // stroke thickness as fraction of H
-private const val DIGIT_GAP_FRAC = 0.10f  // inter-digit gap as fraction of H
+// Stroke at 22% of height — heavy enough to read solidly, thin enough that
+// adjacent strokes don't overlap inside narrow digits like "8" / "0".
+private const val STROKE_FRAC = 0.22f
+private const val DIGIT_GAP_FRAC = 0.10f
 
 /**
  * Draw an uppercase numeric string [text] horizontally, then rotate so it
@@ -87,24 +89,25 @@ private fun DrawScope.drawNavitimerDigit(
     color: Color,
     bold: Boolean
 ) {
-    val sw = h * STROKE_FRAC * (if (bold) 1.15f else 1.0f)
+    val sw = h * STROKE_FRAC * (if (bold) 1.10f else 1.0f)
     val left = topLeft.x
     val top = topLeft.y
     val right = left + w
     val bottom = top + h
     val midX = left + w / 2f
-    val midY = top + h / 2f
+    @Suppress("UNUSED_VARIABLE") val midY = top + h / 2f
     // Inset by half-stroke so outer edges align to the box, not exceed it.
     val pad = sw / 2f
     val innerLeft = left + pad
     val innerRight = right - pad
     val innerTop = top + pad
     val innerBot = bottom - pad
+    // Round caps + round joins keep the thick strokes looking smooth at
+    // intersections (no spiky miter overshoots at 90° corners).
     val stroke = Stroke(
         width = sw,
-        cap = StrokeCap.Butt,
-        join = StrokeJoin.Miter,
-        miter = 4f
+        cap = StrokeCap.Round,
+        join = StrokeJoin.Round
     )
     val path = Path()
 
@@ -134,28 +137,29 @@ private fun DrawScope.drawNavitimerDigit(
             path.lineTo(innerRight, innerBot)
         }
         '3' -> {
-            // Two stacked open-left curves connected by a short middle nub.
-            path.moveTo(innerLeft, innerTop + h * 0.10f)
+            // Top arc (open-left), short middle bar, bottom arc (open-left).
+            // Rendered as one continuous stroke from upper-left around.
+            path.moveTo(innerLeft, innerTop + h * 0.05f)
             path.cubicTo(
-                innerLeft + w * 0.10f, innerTop,
-                innerRight, innerTop,
+                midX, innerTop - h * 0.05f,
+                innerRight, innerTop + h * 0.05f,
                 innerRight, innerTop + h * 0.30f
             )
             path.cubicTo(
                 innerRight, innerTop + h * 0.45f,
-                innerLeft + w * 0.40f, innerTop + h * 0.45f,
-                innerLeft + w * 0.40f, innerTop + h * 0.50f
+                innerLeft + w * 0.50f, innerTop + h * 0.50f,
+                innerLeft + w * 0.30f, innerTop + h * 0.50f
             )
-            path.moveTo(innerLeft + w * 0.40f, innerTop + h * 0.50f)
+            path.moveTo(innerLeft + w * 0.30f, innerTop + h * 0.50f)
             path.cubicTo(
-                innerLeft + w * 0.40f, innerTop + h * 0.55f,
+                innerLeft + w * 0.50f, innerTop + h * 0.50f,
                 innerRight, innerTop + h * 0.55f,
                 innerRight, innerTop + h * 0.70f
             )
             path.cubicTo(
-                innerRight, innerBot,
-                innerLeft + w * 0.10f, innerBot,
-                innerLeft, innerBot - h * 0.10f
+                innerRight, innerBot + h * 0.05f,
+                midX, innerBot + h * 0.05f,
+                innerLeft, innerBot - h * 0.05f
             )
         }
         '4' -> {
@@ -186,25 +190,28 @@ private fun DrawScope.drawNavitimerDigit(
             )
         }
         '6' -> {
-            // Open top arc into a closed lower oval.
-            path.moveTo(innerRight, innerTop + h * 0.18f)
+            // Long curve from upper-right down to lower-left, then a
+            // closed rounded-rectangle for the lower half.
+            path.moveTo(innerRight, innerTop + h * 0.10f)
             path.cubicTo(
-                innerRight - w * 0.10f, innerTop,
-                innerLeft, innerTop,
-                innerLeft, innerTop + h * 0.40f
+                innerRight - w * 0.20f, innerTop - h * 0.05f,
+                innerLeft, innerTop + h * 0.10f,
+                innerLeft, innerTop + h * 0.50f
             )
-            path.lineTo(innerLeft, innerBot - h * 0.18f)
+            // Lower oval — closed shape.
+            path.moveTo(innerLeft, innerTop + h * 0.55f)
             path.cubicTo(
-                innerLeft, innerBot,
-                innerRight, innerBot,
-                innerRight, innerBot - h * 0.18f
-            )
-            path.lineTo(innerRight, innerTop + h * 0.55f)
-            path.cubicTo(
-                innerRight, innerTop + h * 0.40f,
                 innerLeft, innerTop + h * 0.40f,
-                innerLeft, innerTop + h * 0.55f
+                innerRight, innerTop + h * 0.40f,
+                innerRight, innerTop + h * 0.55f
             )
+            path.lineTo(innerRight, innerBot - h * 0.10f)
+            path.cubicTo(
+                innerRight, innerBot + h * 0.05f,
+                innerLeft, innerBot + h * 0.05f,
+                innerLeft, innerBot - h * 0.10f
+            )
+            path.lineTo(innerLeft, innerTop + h * 0.55f)
         }
         '7' -> {
             // Top horizontal, then a long diagonal to the lower-left.
@@ -213,36 +220,24 @@ private fun DrawScope.drawNavitimerDigit(
             path.lineTo(innerLeft + w * 0.20f, innerBot)
         }
         '8' -> {
-            // Two stacked ovals — upper slightly smaller than lower.
-            val midSplit = innerTop + h * 0.48f
-            roundRectPath(path, innerLeft + w * 0.05f, innerTop,
-                innerRight - w * 0.05f, midSplit, w * 0.40f)
-            roundRectPath(path, innerLeft, midSplit,
-                innerRight, innerBot, w * 0.45f)
+            // Two stacked ovals — small inset on the upper one to match
+            // the photo where the upper bowl is visibly narrower.
+            val midSplit = innerTop + h * 0.50f
+            // Upper oval (slightly inset)
+            ovalSubpath(path, innerLeft + w * 0.06f, innerTop,
+                innerRight - w * 0.06f, midSplit)
+            // Lower oval (full width)
+            ovalSubpath(path, innerLeft, midSplit, innerRight, innerBot)
         }
         '9' -> {
-            // Closed top oval, with the right edge extending to bottom-right.
+            // Closed top oval, then a straight stroke down the right side
+            // continuing into a curve to lower-left (mirror of '6').
+            ovalSubpath(path, innerLeft, innerTop, innerRight, innerTop + h * 0.50f)
             path.moveTo(innerRight, innerTop + h * 0.45f)
             path.cubicTo(
-                innerRight, innerTop + h * 0.60f,
-                innerLeft, innerTop + h * 0.60f,
-                innerLeft, innerTop + h * 0.45f
-            )
-            path.cubicTo(
-                innerLeft, innerTop + h * 0.30f,
-                innerLeft, innerTop,
-                innerLeft + w * 0.50f, innerTop
-            )
-            path.cubicTo(
-                innerRight, innerTop,
-                innerRight, innerTop + h * 0.30f,
-                innerRight, innerTop + h * 0.45f
-            )
-            path.lineTo(innerRight, innerBot - h * 0.18f)
-            path.cubicTo(
-                innerRight, innerBot,
-                innerLeft + w * 0.50f, innerBot,
-                innerLeft + w * 0.10f, innerBot
+                innerRight, innerTop + h * 0.55f,
+                innerRight - w * 0.10f, innerBot,
+                innerLeft, innerBot - h * 0.10f
             )
         }
     }
@@ -266,5 +261,22 @@ private fun roundRectPath(
     path.lineTo(left, top + rr)
     path.cubicTo(left, top, left, top, left + rr, top)
     path.close()
-    path.fillType = PathFillType.EvenOdd
+}
+
+/** Append a closed oval subpath approximated by 4 cubic Beziers. */
+private fun ovalSubpath(
+    path: Path,
+    left: Float, top: Float, right: Float, bottom: Float
+) {
+    val cx = (left + right) / 2f
+    val cy = (top + bottom) / 2f
+    val rx = (right - left) / 2f
+    val ry = (bottom - top) / 2f
+    val k = 0.5522847f  // magic Bezier-circle constant
+    path.moveTo(cx, top)
+    path.cubicTo(cx + rx * k, top, right, cy - ry * k, right, cy)
+    path.cubicTo(right, cy + ry * k, cx + rx * k, bottom, cx, bottom)
+    path.cubicTo(cx - rx * k, bottom, left, cy + ry * k, left, cy)
+    path.cubicTo(left, cy - ry * k, cx - rx * k, top, cx, top)
+    path.close()
 }
