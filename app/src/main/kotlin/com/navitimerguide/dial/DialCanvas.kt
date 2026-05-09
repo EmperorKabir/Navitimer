@@ -226,31 +226,37 @@ private val OUTER_LABEL_SET: Set<Int> =
     (10..25).toSet() +
     setOf(30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95)
 
-/** Inner fixed scale: like the outer, but in the upper half only every 10 (with 70/80/90 abbreviated as 7/8/9).
- *  Values that have a red triangle marker (10, 35, 40) are intentionally
- *  EXCLUDED so the marker triangle replaces the regular numeral. 36 keeps
- *  its red numeral (alongside the red triangle). */
+/** Inner fixed scale: 10..25 every integer, 30..55 every 5, plus 70/80/90
+ *  abbreviated as 7/8/9 in the upper half. 60 is excluded because the
+ *  white-arrow MPH index replaces the numeral entirely (per image 22). */
 private val INNER_LABEL_MAP: Map<Int, String> =
-    (11..25).associateWith { it.toString() } +                       // 10 excluded
-    listOf(30, 45, 50, 55).associateWith { it.toString() } +         // 35, 40 excluded
-    mapOf(60 to "60", 70 to "7", 80 to "8", 90 to "9", 36 to "36")
+    (10..25).associateWith { it.toString() } +
+    listOf(30, 35, 40, 45, 50, 55).associateWith { it.toString() } +
+    mapOf(36 to "36", 70 to "7", 80 to "8", 90 to "9")
+    // 60 intentionally absent — replaced by the white-arrow MPH index.
 
-/** Integer scale values where a RED TRIANGLE replaces the regular tick.
- *  Per photo image 21: the red arrows sit ON the markers, not next to them. */
+/** Integer scale values where a RED TRIANGLE (or white arrow at inner 60)
+ *  replaces the regular WHITE tick. Note 35 and 40 are NOT in here — those
+ *  are regular bezel numerals; the NAUT / STAT triangles sit at fractional
+ *  positions ≈ 34.02 / 39.15 (next to but not on the integer ticks). */
 private val OUTER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 36, 60)
-private val INNER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 35, 36, 40, 60)
-/** Outer values where the regular numeral is also hidden (pure triangle marker). */
-private val OUTER_NUMERAL_HIDDEN: Set<Int> = setOf(10)
+private val INNER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 36, 60)
+/** Inner numerals drawn in RED — the unit index (10) and the 60×60=3600
+ *  time-conversion index (36). 35 and 40 are regular WHITE numerals. */
+private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10, 36)
 
 // =============================================================== ticks
 
 private enum class TickRank { TALL, MEDIUM, SHORT }
 
-/** Step between ticks at scale-value [v], following the slide-rule's progressive subdivision. */
+/** Step between ticks at scale-value [v], following the slide-rule's progressive subdivision.
+ *  25..100 is uniform (every integer) so the 50→60 region matches the
+ *  40→50 region in style — per the user's note about image 25 that the
+ *  marker style was changing wrongly between 50 and 60.
+ */
 private fun stepAt(v: Double): Double = when {
     v < 20.0 -> 0.1
     v < 25.0 -> 0.2
-    v < 50.0 -> 0.5
     else -> 1.0
 }
 
@@ -260,10 +266,9 @@ private fun isHalfStep(v: Double): Boolean = kotlin.math.abs((v * 2.0) - round(v
 private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
     if (isLabelled) return TickRank.TALL
     return when {
-        v < 20.0 -> if (isHalfStep(v)) TickRank.MEDIUM else TickRank.SHORT  // x.5 stands out
+        v < 20.0 -> if (isHalfStep(v)) TickRank.MEDIUM else TickRank.SHORT
         v < 25.0 -> TickRank.SHORT
-        v < 50.0 -> if (isInteger(v)) TickRank.MEDIUM else TickRank.SHORT   // integers stand out
-        else -> TickRank.SHORT
+        else -> TickRank.MEDIUM   // every integer in 25..100 is the same MEDIUM rank
     }
 }
 
@@ -342,41 +347,44 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
     for (v in allTickValues()) {
         val intV = round(v).toInt()
         val isInt = isInteger(v)
-        // At values where a red triangle takes the tick's place, skip drawing
-        // the normal white tick.
-        if (isInt && intV in OUTER_TICK_REPLACED_BY_TRIANGLE) continue
-
+        val skipTick = isInt && intV in OUTER_TICK_REPLACED_BY_TRIANGLE
         val isLabelled = isInt && intV in OUTER_LABEL_SET
         val rank = tickRank(v, isLabelled)
         val angle = DialMath.drawAngleDeg(v)
         val rad = angle * PI / 180.0
 
-        val len = when (rank) {
-            TickRank.TALL -> tallLen
-            TickRank.MEDIUM -> medLen
-            TickRank.SHORT -> shortLen
+        // Draw the tick only if it isn't being replaced by a triangle.
+        if (!skipTick) {
+            val len = when (rank) {
+                TickRank.TALL -> tallLen
+                TickRank.MEDIUM -> medLen
+                TickRank.SHORT -> shortLen
+            }
+            val sw = when (rank) {
+                TickRank.TALL -> 1.8f
+                TickRank.MEDIUM -> 1.2f
+                TickRank.SHORT -> 0.95f
+            }
+            val tickInnerR = tickOuterR - len
+            val sx = g.center.x + (tickInnerR * cos(rad)).toFloat()
+            val sy = g.center.y + (tickInnerR * sin(rad)).toFloat()
+            val ex = g.center.x + (tickOuterR * cos(rad)).toFloat()
+            val ey = g.center.y + (tickOuterR * sin(rad)).toFloat()
+            drawLine(
+                color = DialPalette.Numeral.copy(alpha = when (rank) {
+                    TickRank.TALL -> 0.95f
+                    TickRank.MEDIUM -> 0.85f
+                    TickRank.SHORT -> 0.75f
+                }),
+                start = Offset(sx, sy), end = Offset(ex, ey),
+                strokeWidth = sw
+            )
         }
-        val sw = when (rank) {
-            TickRank.TALL -> 1.8f
-            TickRank.MEDIUM -> 1.2f
-            TickRank.SHORT -> 0.95f
-        }
-        val tickInnerR = tickOuterR - len
-        val sx = g.center.x + (tickInnerR * cos(rad)).toFloat()
-        val sy = g.center.y + (tickInnerR * sin(rad)).toFloat()
-        val ex = g.center.x + (tickOuterR * cos(rad)).toFloat()
-        val ey = g.center.y + (tickOuterR * sin(rad)).toFloat()
-        drawLine(
-            color = DialPalette.Numeral.copy(alpha = when (rank) {
-                TickRank.TALL -> 0.95f
-                TickRank.MEDIUM -> 0.85f
-                TickRank.SHORT -> 0.75f
-            }),
-            start = Offset(sx, sy), end = Offset(ex, ey),
-            strokeWidth = sw
-        )
-        if (isLabelled && intV !in OUTER_NUMERAL_HIDDEN) {
-            val isRed = (intV == 60 || intV == 36)
+        // Draw the numeral whenever the value is labelled, even if the tick
+        // was skipped — outer 10 / 36 / 60 keep their RED numerals next to
+        // their red triangles (per images 22 and 24).
+        if (isLabelled) {
+            val isRed = (intV == 10 || intV == 36 || intV == 60)
             drawScaleNumeralUpright(
                 measurer = measurer,
                 text = intV.toString(),
@@ -426,39 +434,44 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
         val isInt = isInteger(v)
-        if (isInt && intV in INNER_TICK_REPLACED_BY_TRIANGLE) continue
+        val skipTick = isInt && intV in INNER_TICK_REPLACED_BY_TRIANGLE
         val isLabelled = isInt && intV in INNER_LABEL_MAP
         val rank = tickRank(v, isLabelled)
         val angle = DialMath.drawAngleDeg(v)
         val rad = angle * PI / 180.0
 
-        val len = when (rank) {
-            TickRank.TALL -> tallLen
-            TickRank.MEDIUM -> medLen
-            TickRank.SHORT -> shortLen
+        if (!skipTick) {
+            val len = when (rank) {
+                TickRank.TALL -> tallLen
+                TickRank.MEDIUM -> medLen
+                TickRank.SHORT -> shortLen
+            }
+            val sw = when (rank) {
+                TickRank.TALL -> 1.6f
+                TickRank.MEDIUM -> 1.1f
+                TickRank.SHORT -> 0.85f
+            }
+            val tickInnerR = tickOuterR - len
+            val sx = g.center.x + (tickInnerR * cos(rad)).toFloat()
+            val sy = g.center.y + (tickInnerR * sin(rad)).toFloat()
+            val ex = g.center.x + (tickOuterR * cos(rad)).toFloat()
+            val ey = g.center.y + (tickOuterR * sin(rad)).toFloat()
+            drawLine(
+                color = DialPalette.Numeral.copy(alpha = when (rank) {
+                    TickRank.TALL -> 0.9f
+                    TickRank.MEDIUM -> 0.8f
+                    TickRank.SHORT -> 0.7f
+                }),
+                start = Offset(sx, sy), end = Offset(ex, ey),
+                strokeWidth = sw
+            )
         }
-        val sw = when (rank) {
-            TickRank.TALL -> 1.6f
-            TickRank.MEDIUM -> 1.1f
-            TickRank.SHORT -> 0.85f
-        }
-        val tickInnerR = tickOuterR - len
-        val sx = g.center.x + (tickInnerR * cos(rad)).toFloat()
-        val sy = g.center.y + (tickInnerR * sin(rad)).toFloat()
-        val ex = g.center.x + (tickOuterR * cos(rad)).toFloat()
-        val ey = g.center.y + (tickOuterR * sin(rad)).toFloat()
-        drawLine(
-            color = DialPalette.Numeral.copy(alpha = when (rank) {
-                TickRank.TALL -> 0.9f
-                TickRank.MEDIUM -> 0.8f
-                TickRank.SHORT -> 0.7f
-            }),
-            start = Offset(sx, sy), end = Offset(ex, ey),
-            strokeWidth = sw
-        )
+        // Always draw the numeral if this value is labelled, even if the
+        // tick was skipped (so red 10 / 36 keep their numerals next to the
+        // triangle markers, per image 24).
         if (isLabelled) {
             val text = INNER_LABEL_MAP.getValue(intV)
-            val isRed = (intV == 60 || intV == 10 || intV == 36)
+            val isRed = intV in INNER_RED_NUMERAL_VALUES
             drawScaleNumeralUpright(
                 measurer = measurer,
                 text = text,
@@ -479,9 +492,12 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     val triangleSize = width * 0.18f
     val triangleSizeSmall = width * 0.14f
 
-    // KM (text only) / STAT (triangle + "STAT. 40") / NAUT (triangle + "NAUT. 35")
+    // KM / STAT triangle / NAUT triangle / "NAUT." text / "STAT." text.
+    // MPH (60) is filtered OUT so we can draw the white-arrow index manually.
     val markerLabelR = numeralR + width * 0.22f
-    Markers.all.filter { it.side == ScaleSide.INNER && it.style != MarkerStyle.RED_NUMERAL }
+    Markers.all
+        .filter { it.side == ScaleSide.INNER && it.style != MarkerStyle.RED_NUMERAL }
+        .filter { kotlin.math.abs(it.scaleValue - DialMath.RED_60_MPH) > 1e-6 }
         .forEach { m ->
             val angle = DialMath.drawAngleDeg(m.scaleValue)
             if (m.style == MarkerStyle.TRIANGLE_OUTWARD) {
@@ -523,8 +539,60 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         color = DialPalette.Red, inward = false
     )
 
-    // (Inner red 60 / MPH triangle is drawn by the Markers.all loop above —
-    //  it has style TRIANGLE_OUTWARD, so we don't need an explicit triangle here.)
+    // White MPH arrow at inner 60 — replaces the red triangle (per image 22).
+    val mphAngle = DialMath.drawAngleDeg(60.0)
+    drawMphArrow(g, mphAngle)
+    drawScaleNumeralUpright(
+        measurer = measurer,
+        text = "MPH",
+        angleDegFromTop = mphAngle.toFloat(),
+        radius = markerLabelR,
+        center = g.center,
+        color = DialPalette.Red,
+        sizeSp = (g.rOuter * 0.038f / density).sp,
+        bold = true
+    )
+}
+
+/**
+ * Curved-sides white arrow at inner 60 (the MPH index). Tip points OUTWARD;
+ * sides bow outward via quadratic Beziers, giving the bulbous winged-arrow
+ * shape from photo image 22.
+ */
+private fun DrawScope.drawMphArrow(g: DialGeom, angleDeg: Double) {
+    val width = g.rChapterOuter - g.rChapterInner
+    val rad = angleDeg * PI / 180.0
+    val cosA = cos(rad).toFloat()
+    val sinA = sin(rad).toFloat()
+    val perpCosA = -sinA
+    val perpSinA = cosA
+
+    val tipR = g.rChapterOuter
+    val baseR = g.rChapterInner + width * 0.20f
+    val baseHalfW = width * 0.16f
+    val midR = g.rChapterInner + width * 0.55f
+    val midHalfW = width * 0.32f
+
+    val tipX = g.center.x + tipR * cosA
+    val tipY = g.center.y + tipR * sinA
+    val baseLeftX = g.center.x + baseR * cosA + baseHalfW * perpCosA
+    val baseLeftY = g.center.y + baseR * sinA + baseHalfW * perpSinA
+    val baseRightX = g.center.x + baseR * cosA - baseHalfW * perpCosA
+    val baseRightY = g.center.y + baseR * sinA - baseHalfW * perpSinA
+    val midLeftX = g.center.x + midR * cosA + midHalfW * perpCosA
+    val midLeftY = g.center.y + midR * sinA + midHalfW * perpSinA
+    val midRightX = g.center.x + midR * cosA - midHalfW * perpCosA
+    val midRightY = g.center.y + midR * sinA - midHalfW * perpSinA
+
+    val path = Path().apply {
+        moveTo(tipX, tipY)
+        quadraticBezierTo(midLeftX, midLeftY, baseLeftX, baseLeftY)
+        lineTo(baseRightX, baseRightY)
+        quadraticBezierTo(midRightX, midRightY, tipX, tipY)
+        close()
+    }
+    drawPath(path, color = DialPalette.Hand)
+    drawPath(path, color = Color(0xFF606060), style = Stroke(width = 1.0f))
 }
 
 // =============================================================== dial background

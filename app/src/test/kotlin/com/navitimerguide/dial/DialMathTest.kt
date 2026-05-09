@@ -38,24 +38,28 @@ class DialMathTest {
         }
     }
 
-    @Test fun `STAT marker is pinned to integer label 40`() {
-        closeTo(40.0, DialMath.STAT_MARKER, eps = 1e-9)
-    }
-
-    @Test fun `NAUT marker is pinned to integer label 35`() {
-        closeTo(35.0, DialMath.NAUT_MARKER, eps = 1e-9)
-    }
-
-    @Test fun `STAT-to-KM ratio approximates mile-to-km factor`() {
-        // Markers pinned to integer numerals for visual fidelity to the
-        // dial; conversion factor accurate to ~0.5 %.
+    @Test fun `STAT marker encodes mile-to-km factor exactly`() {
+        // Marker positions are now derived from KM_MARKER and the conversion
+        // factors, so the ratio is exact.
         val ratio = DialMath.KM_MARKER / DialMath.STAT_MARKER
-        closeTo(DialMath.MILE_TO_KM, ratio, eps = 0.01)
+        closeTo(DialMath.MILE_TO_KM, ratio, eps = 1e-9)
     }
 
-    @Test fun `NAUT-to-KM ratio approximates nautical-to-km factor`() {
+    @Test fun `NAUT marker encodes nautical-to-km factor exactly`() {
         val ratio = DialMath.KM_MARKER / DialMath.NAUT_MARKER
-        closeTo(DialMath.NAUT_TO_KM, ratio, eps = 0.01)
+        closeTo(DialMath.NAUT_TO_KM, ratio, eps = 1e-9)
+    }
+
+    @Test fun `STAT marker is just before scale 40`() {
+        // KM = 63 → STAT = 63 / 1.609 ≈ 39.15. Just inside the 39..40 gap.
+        assertTrue("expected STAT in (39, 40), got ${DialMath.STAT_MARKER}",
+            DialMath.STAT_MARKER in 39.0..40.0)
+    }
+
+    @Test fun `NAUT marker is just before scale 35`() {
+        // KM = 63 → NAUT = 63 / 1.852 ≈ 34.02.
+        assertTrue("expected NAUT in (33, 35), got ${DialMath.NAUT_MARKER}",
+            DialMath.NAUT_MARKER in 33.0..35.0)
     }
 
     @Test fun `align rotation places outer X over inner Y`() {
@@ -71,12 +75,10 @@ class DialMathTest {
         closeTo(3.5, DialMath.multiplierFromRotation(rot))
     }
 
-    @Test fun `aligning STAT and KM converts miles to km within 1 percent`() {
-        // Bezel rotated such that outer-10 sits over inner-STAT_MARKER.
-        // Reading at KM should approximate 1 * MILE_TO_KM (within 1 %).
+    @Test fun `aligning STAT and KM converts miles to km exactly`() {
         val rot = DialMath.alignRotation(outerX = 10.0, innerY = DialMath.STAT_MARKER)
         val readKm = DialMath.outerValueAtInner(DialMath.KM_MARKER, rot)
         val readStat = DialMath.outerValueAtInner(DialMath.STAT_MARKER, rot)
-        closeTo(DialMath.MILE_TO_KM, readKm / readStat, eps = 0.01)
+        closeTo(DialMath.MILE_TO_KM, readKm / readStat, eps = 1e-6)
     }
 }
