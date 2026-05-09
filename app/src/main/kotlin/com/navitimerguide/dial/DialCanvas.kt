@@ -248,28 +248,47 @@ private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10)
 
 private enum class TickRank { TALL, MEDIUM, SHORT }
 
-/** Step between ticks at scale-value [v]. One uniform rule across the
- *  whole bezel — counted directly from images 27 / 28 of the real watch:
- *  every adjacent pair of labelled values is divided into five, giving
- *  four short sub-marks between them. No half-markers anywhere.
- *   - 10..25 (labels at every integer)  → step = 0.2 → 4 sub-marks per integer
- *   - 25..100 (labels at every five)    → step = 1.0 → 4 sub-marks per every-5
+/** Step between ticks at scale-value [v]. Five tiers transcribed from
+ *  the user's definitive spec (images 29..33 of the real watch):
+ *   - 10..11           → 0.2  (four thin between thick 10 and thick 11)
+ *   - 11..12           → 0.1  (four thin between each pair of thick marks
+ *                              at 11 / 11.5 / 12 — note the asymmetric
+ *                              jump in density vs 10..11)
+ *   - 12..25           → 0.2  (four thin between thick integers)
+ *   - 25..60           → 0.5  (long thin integers + short thin halves)
+ *   - 60..100          → 1.0  (integer marks only — no halves on this side)
  */
-private fun stepAt(v: Double): Double = if (v < 25.0) 0.2 else 1.0
+private fun stepAt(v: Double): Double = when {
+    v < 11.0 -> 0.2
+    v < 12.0 -> 0.1
+    v < 25.0 -> 0.2
+    v < 60.0 -> 0.5
+    else -> 1.0
+}
 
 private fun isInteger(v: Double): Boolean = kotlin.math.abs(v - round(v)) < 1e-6
 
+/** Unlabelled scale values that still render as long+thick (TALL rank).
+ *  11.5 is the only such mark on the Navitimer per the user's spec. */
+private val EXTRA_THICK_VALUES: Set<Double> = setOf(11.5)
+private fun isExtraThick(v: Double): Boolean =
+    EXTRA_THICK_VALUES.any { kotlin.math.abs(v - it) < 1e-6 }
+
 private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
-    // The dense lower decade (10..25) labels EVERY integer on both rings,
-    // and image 26 shows each of those integers with a TALL tick — there's
-    // no shorter / taller rhythm in 12-25 because every integer IS a major
-    // value. So every labelled value gets TALL.
-    if (isLabelled) return TickRank.TALL
-    // Unlabelled values come in two flavours, both rendered SHORT for
-    // 10..25 (fifth-divisions of an integer) and MEDIUM for 25..100
-    // (integer sub-marks between every-five labels — longer than the
-    // fifth-divisions to give the upper decade a clear integer rhythm).
-    return if (v < 25.0) TickRank.SHORT else TickRank.MEDIUM
+    // TALL = long + thick. Reserved for labelled values (numerals) plus the
+    // single unlabelled thick mark at 11.5.
+    if (isLabelled || isExtraThick(v)) return TickRank.TALL
+    return when {
+        // 10..25 sub-marks (the 0.1 / 0.2 fifth- and tenth-divisions) all
+        // render SHORT — short + thin.
+        v < 25.0 -> TickRank.SHORT
+        // 25..60 unlabelled values: integers are LONG + thin (MEDIUM),
+        // halves are SHORT + thin.
+        v < 60.0 -> if (isInteger(v)) TickRank.MEDIUM else TickRank.SHORT
+        // 60..100: stepAt = 1.0, so only integer marks reach this branch.
+        // Unlabelled integers (61..64, 66..69, …) render LONG + thin.
+        else -> TickRank.MEDIUM
+    }
 }
 
 /** Ordered list of all tick values across one decade [10, 100). */
@@ -341,9 +360,13 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
     // scale X across the hairline step gap.
     val numeralR = ringMid + ringWidth * 0.32f
     val tickAnchor = g.rBezelInner
-    val tallLen = ringWidth * 0.55f       // longest — stops just below numerals
-    val medLen = ringWidth * 0.36f
-    val shortLen = ringWidth * 0.20f
+    // TALL and MEDIUM are the SAME length per the user's spec — both are
+    // "long" marks on the real watch. The differentiator is stroke width:
+    // TALL is thick (labelled values + 11.5), MEDIUM is thin (unlabelled
+    // integers in 25..100). SHORT is for the half / fifth / tenth-marks.
+    val tallLen = ringWidth * 0.55f
+    val medLen = ringWidth * 0.55f
+    val shortLen = ringWidth * 0.30f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -362,9 +385,9 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
                 TickRank.SHORT -> shortLen
             }
             val sw = when (rank) {
-                TickRank.TALL -> 1.8f
-                TickRank.MEDIUM -> 1.2f
-                TickRank.SHORT -> 0.95f
+                TickRank.TALL -> 2.0f
+                TickRank.MEDIUM -> 0.9f
+                TickRank.SHORT -> 0.75f
             }
             // tick anchored at rBezelInner (the step), grows OUTWARD by len
             val tickOuterR = tickAnchor + len
@@ -432,9 +455,11 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     // hairline step gap, regardless of tick rank.
     val numeralR = g.rChapterInner + width * 0.20f
     val tickOuterR = g.rChapterOuter
+    // TALL and MEDIUM are the SAME length on inner too (matches the
+    // outer-bezel rule and the photo). Stroke width is the differentiator.
     val tallLen = width * 0.55f
-    val medLen = width * 0.36f
-    val shortLen = width * 0.20f
+    val medLen = width * 0.55f
+    val shortLen = width * 0.30f
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
@@ -452,9 +477,9 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
                 TickRank.SHORT -> shortLen
             }
             val sw = when (rank) {
-                TickRank.TALL -> 1.6f
-                TickRank.MEDIUM -> 1.1f
-                TickRank.SHORT -> 0.85f
+                TickRank.TALL -> 1.8f
+                TickRank.MEDIUM -> 0.85f
+                TickRank.SHORT -> 0.7f
             }
             val tickInnerR = tickOuterR - len
             val sx = g.center.x + (tickInnerR * cos(rad)).toFloat()
