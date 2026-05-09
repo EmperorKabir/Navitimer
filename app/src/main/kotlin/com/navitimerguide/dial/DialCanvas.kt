@@ -249,15 +249,17 @@ private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10)
 private enum class TickRank { TALL, MEDIUM, SHORT }
 
 /** Step between ticks at scale-value [v].
- *  Per the user's instruction:
- *   - 10..12: every 0.1 (the densely sub-divided unit-index region)
- *   - 12..25: integer ticks ONLY — half markers are removed in this range
- *   - 25..100: every 0.5 — half markers and integer markers (alternating
- *     short / medium heights as the photo shows).
+ *  Matches image 26 of the real Navitimer dense lower decade:
+ *   - 10..12: every 0.1 (very dense unit-index region; tenth subdivisions).
+ *   - 12..25: every 0.2 — five subdivisions per integer (no 0.5 half-mark;
+ *     the closest sub-ticks are 0.4 and 0.6, so the half-marker the user
+ *     asked to remove is naturally absent).
+ *   - 25..100: every 0.5 — half markers (shorter) plus integer markers
+ *     (taller).
  */
 private fun stepAt(v: Double): Double = when {
     v < 12.0 -> 0.1
-    v < 25.0 -> 1.0
+    v < 25.0 -> 0.2
     else -> 0.5
 }
 
@@ -265,16 +267,17 @@ private fun isInteger(v: Double): Boolean = kotlin.math.abs(v - round(v)) < 1e-6
 private fun isHalfStep(v: Double): Boolean = kotlin.math.abs((v * 2.0) - round(v * 2.0)) < 1e-6 && !isInteger(v)
 
 private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
-    val intV = v.toInt()
-    val isMultipleOf5 = isInteger(v) && intV % 5 == 0
-    // TALL only at the major-five labelled values (10, 15, 20, 25, 30, ..., 95).
-    // Other labelled integers (11..14, 16..19, 21..24) get MEDIUM, so the
-    // 12-25 range shows the alternating tall / medium pattern from image 26.
-    if (isMultipleOf5 && isLabelled) return TickRank.TALL
-    if (isLabelled) return TickRank.MEDIUM
+    // The dense lower decade (10..25) labels EVERY integer on both rings,
+    // and image 26 shows each of those integers with a TALL tick — there's
+    // no shorter / taller rhythm in 12-25 because every integer IS a major
+    // value. So every labelled value gets TALL.
+    if (isLabelled) return TickRank.TALL
     return when {
         v < 12.0 -> if (isHalfStep(v)) TickRank.MEDIUM else TickRank.SHORT
-        v < 25.0 -> TickRank.MEDIUM
+        // 12..25 sub-ticks are the 0.2 / 0.4 / 0.6 / 0.8 fifth-marks. They
+        // sit BETWEEN labelled integers and should be SHORT — the integer
+        // marks are already TALL via the isLabelled branch above.
+        v < 25.0 -> TickRank.SHORT
         else -> if (isInteger(v)) TickRank.MEDIUM else TickRank.SHORT
     }
 }
@@ -401,7 +404,10 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
                 radius = numeralR,
                 center = g.center,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
-                sizeSp = (g.rOuter * (if (intV % 5 == 0) 0.058f else 0.040f) / density).sp
+                // All labelled outer numerals share one size — image 26
+                // shows the lower-decade integers (11..25) at the same
+                // size as the major-five values (15, 20, 25, 30, 35, ...).
+                sizeSp = (g.rOuter * 0.052f / density).sp
             )
         }
     }
@@ -488,7 +494,8 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
                 radius = numeralR,
                 center = g.center,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
-                sizeSp = (g.rOuter * (if (intV % 5 == 0) 0.048f else 0.034f) / density).sp
+                // Same uniform size for every inner labelled numeral.
+                sizeSp = (g.rOuter * 0.044f / density).sp
             )
         }
     }
