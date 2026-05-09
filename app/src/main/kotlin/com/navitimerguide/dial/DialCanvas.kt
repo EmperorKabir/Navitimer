@@ -248,23 +248,16 @@ private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10)
 
 private enum class TickRank { TALL, MEDIUM, SHORT }
 
-/** Step between ticks at scale-value [v]. Three density tiers matching
- *  images 27 / 28 of the real Navitimer:
- *   - 10..12 (densest unit-index region): every 0.1 — nine sub-marks per
- *     integer step, with the half-mark (10.5 / 11.5) slightly emphasised.
- *   - 12..25 (dense lower decade): every 0.2 — four short sub-marks
- *     between each labelled integer.
- *   - 25..100 (sparse upper decade): every 0.5 — half markers (shorter)
- *     plus integer markers (taller) between the every-five labels.
+/** Step between ticks at scale-value [v]. One uniform rule across the
+ *  whole bezel — counted directly from images 27 / 28 of the real watch:
+ *  every adjacent pair of labelled values is divided into five, giving
+ *  four short sub-marks between them. No half-markers anywhere.
+ *   - 10..25 (labels at every integer)  → step = 0.2 → 4 sub-marks per integer
+ *   - 25..100 (labels at every five)    → step = 1.0 → 4 sub-marks per every-5
  */
-private fun stepAt(v: Double): Double = when {
-    v < 12.0 -> 0.1
-    v < 25.0 -> 0.2
-    else -> 0.5
-}
+private fun stepAt(v: Double): Double = if (v < 25.0) 0.2 else 1.0
 
 private fun isInteger(v: Double): Boolean = kotlin.math.abs(v - round(v)) < 1e-6
-private fun isHalfStep(v: Double): Boolean = kotlin.math.abs((v * 2.0) - round(v * 2.0)) < 1e-6 && !isInteger(v)
 
 private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
     // The dense lower decade (10..25) labels EVERY integer on both rings,
@@ -272,16 +265,11 @@ private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
     // no shorter / taller rhythm in 12-25 because every integer IS a major
     // value. So every labelled value gets TALL.
     if (isLabelled) return TickRank.TALL
-    return when {
-        // 10..12 tenth-divisions: half-mark (10.5 / 11.5) is MEDIUM,
-        // all other 0.1 sub-ticks are SHORT.
-        v < 12.0 -> if (isHalfStep(v)) TickRank.MEDIUM else TickRank.SHORT
-        // 12..25 fifth-divisions all SHORT — labelled integers between
-        // them already TALL via the isLabelled branch above.
-        v < 25.0 -> TickRank.SHORT
-        // 25..100 half-step grid: integer sub-marks MEDIUM, halves SHORT.
-        else -> if (isInteger(v)) TickRank.MEDIUM else TickRank.SHORT
-    }
+    // Unlabelled values come in two flavours, both rendered SHORT for
+    // 10..25 (fifth-divisions of an integer) and MEDIUM for 25..100
+    // (integer sub-marks between every-five labels — longer than the
+    // fifth-divisions to give the upper decade a clear integer rhythm).
+    return if (v < 25.0) TickRank.SHORT else TickRank.MEDIUM
 }
 
 /** Ordered list of all tick values across one decade [10, 100). */
