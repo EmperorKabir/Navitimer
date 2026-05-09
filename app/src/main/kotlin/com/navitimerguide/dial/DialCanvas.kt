@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.imageResource
@@ -421,15 +422,14 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
         // their red triangles (per images 22 and 24).
         if (isLabelled) {
             val isRed = (intV == 10 || intV == 36 || intV == 60)
-            drawNavitimerNumeralUpright(
+            drawScaleNumeralUpright(
+                measurer = measurer,
                 text = intV.toString(),
                 angleDegFromTop = angle.toFloat(),
                 radius = numeralR,
                 center = g.center,
-                // Hand-drawn replica of the Navitimer numerals — see
-                // [NavitimerNumerals.kt]. Height is in pixels.
-                height = g.rOuter * 0.075f,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
+                sizeSp = (g.rOuter * 0.090f / density).sp,
                 bold = true
             )
         }
@@ -514,13 +514,14 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         if (isLabelled) {
             val text = INNER_LABEL_MAP.getValue(intV)
             val isRed = intV in INNER_RED_NUMERAL_VALUES
-            drawNavitimerNumeralUpright(
+            drawScaleNumeralUpright(
+                measurer = measurer,
                 text = text,
                 angleDegFromTop = angle.toFloat(),
                 radius = numeralR,
                 center = g.center,
-                height = g.rOuter * 0.062f,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
+                sizeSp = (g.rOuter * 0.078f / density).sp,
                 bold = true
             )
         }
@@ -1308,13 +1309,20 @@ private fun DrawScope.drawAngledChronoControl(
 
 // =============================================================== text + triangle helpers
 
-// Saira Condensed — the closest open-source approximation to the
-// proprietary Breitling Navitimer typeface (tall, narrow, condensed
-// sans-serif with industrial / aviation feel). Bundled in res/font.
+// Big Shoulders Display — Google Fonts variable-weight family with strong
+// slab terminals, geometric proportions, and a tall condensed feel. The
+// closest publicly-available approximation to the proprietary Breitling
+// Navitimer numerals. The TTF is the variable-axis 'wght' file, so weight
+// must be selected via FontVariation; Bold (700) is heaviest readable.
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
 private val BezelFont = FontFamily(
-    Font(R.font.saira_condensed_medium, FontWeight.Medium),
-    Font(R.font.saira_condensed_semibold, FontWeight.SemiBold),
-    Font(R.font.saira_condensed_bold, FontWeight.Bold)
+    Font(
+        R.font.big_shoulders_display_bold,
+        FontWeight.Bold,
+        variationSettings = androidx.compose.ui.text.font.FontVariation.Settings(
+            androidx.compose.ui.text.font.FontVariation.weight(800)
+        )
+    )
 )
 
 private fun DrawScope.drawScaleNumeralUpright(
@@ -1337,9 +1345,18 @@ private fun DrawScope.drawScaleNumeralUpright(
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium)
     )
     val rot = angleDegFromTop + 90f
+    // Tiny non-uniform scale to push the glyph slightly taller / narrower
+    // than Big Shoulders Display's natural metrics — the proprietary
+    // Navitimer face is a touch more compressed than this font.
+    val scaleX = 0.94f
+    val scaleY = 1.06f
     rotate(rot, pivot = Offset(x, y)) {
-        drawText(textLayoutResult = l,
-            topLeft = Offset(x - l.size.width / 2f, y - l.size.height / 2f))
+        scale(scaleX = scaleX, scaleY = scaleY, pivot = Offset(x, y)) {
+            drawText(
+                textLayoutResult = l,
+                topLeft = Offset(x - l.size.width / 2f, y - l.size.height / 2f)
+            )
+        }
     }
 }
 
