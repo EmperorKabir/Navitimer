@@ -421,17 +421,18 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
         // their red triangles (per images 22 and 24).
         if (isLabelled) {
             val isRed = (intV == 10 || intV == 36 || intV == 60)
-            drawScaleNumeralUpright(
-                measurer = measurer,
+            drawNavitimerNumeralUpright(
                 text = intV.toString(),
                 angleDegFromTop = angle.toFloat(),
                 radius = numeralR,
                 center = g.center,
+                // Hand-drawn replica of the Navitimer numerals — see
+                // [NavitimerNumerals.kt]. Height is in pixels, set so the
+                // glyph reads at roughly the same visual size as the
+                // previous text-rendered numerals.
+                height = g.rOuter * 0.062f,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
-                // All labelled outer numerals share one size — image 26
-                // shows the lower-decade integers (11..25) at the same
-                // size as the major-five values (15, 20, 25, 30, 35, ...).
-                sizeSp = (g.rOuter * 0.052f / density).sp
+                bold = true
             )
         }
     }
@@ -515,15 +516,14 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         if (isLabelled) {
             val text = INNER_LABEL_MAP.getValue(intV)
             val isRed = intV in INNER_RED_NUMERAL_VALUES
-            drawScaleNumeralUpright(
-                measurer = measurer,
+            drawNavitimerNumeralUpright(
                 text = text,
                 angleDegFromTop = angle.toFloat(),
                 radius = numeralR,
                 center = g.center,
+                height = g.rOuter * 0.052f,
                 color = if (isRed) DialPalette.Red else DialPalette.Numeral,
-                // Same uniform size for every inner labelled numeral.
-                sizeSp = (g.rOuter * 0.044f / density).sp
+                bold = true
             )
         }
     }

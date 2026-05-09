@@ -56,17 +56,14 @@ class DialViewModel : ViewModel() {
 
     // ------------------------------------------------------------- inputs
     //
-    // Two-way binding:
-    //   • OUTER auto-updates whenever the bezel rotation changes (drag,
-    //     preset, snap), so the field always reads the value sitting at
-    //     the inner anchor at 12 o'clock.
-    //   • INNER stays as the user typed; it is the *anchor* — the value
-    //     on the inner scale that the user wants to read against.
-    //   • Typing in OUTER overrides the live readout; on commit the bezel
-    //     snaps to align that typed pair.
-    //   • Typing in INNER recomputes OUTER live (without rotating the bezel),
-    //     because changing the anchor changes which outer value sits at it
-    //     for the current bezel rotation.
+    // Both fields are user-typed, independent strings. Neither is silently
+    // overwritten while the user is typing. The bezel only updates on
+    // commit (focus-out / IME Done), and the OUTER live readout only
+    // refreshes when the bezel itself rotates (drag, preset, reset).
+    //
+    // Nonsense input (empty, multiple dots, etc.) fails parseDouble in
+    // [commitInputs] and is silently ignored — the bezel does nothing
+    // and the field keeps the user's typed text.
 
     fun setOuterText(s: String) {
         _outerInput.value = s
@@ -74,14 +71,13 @@ class DialViewModel : ViewModel() {
 
     fun setInnerText(s: String) {
         _innerInput.value = s
-        // Live recompute outer for the new anchor at the current rotation.
-        syncOuterFromRotation()
     }
 
     fun commitInputs() {
         val x = _outerInput.value.toDoubleOrNull() ?: return
         val y = _innerInput.value.toDoubleOrNull() ?: return
-        if (x > 0 && y > 0) snapAlign(x, y)
+        if (x <= 0 || y <= 0 || !x.isFinite() || !y.isFinite()) return
+        snapAlign(x, y)
     }
 
     private fun syncOuterFromRotation() {
