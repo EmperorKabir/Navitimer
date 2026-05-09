@@ -92,6 +92,7 @@ private fun StaticDial(measurer: TextMeasurer, modifier: Modifier) {
         drawDialBackground(g)
         drawSunburstOverlay(g)
         drawDialHighlight(g)
+        drawMphLabel(g, measurer)
         drawBrandMarks(g, measurer, wingsBitmap)
         drawSubDialFaces(g, measurer)
         drawDialHourIndices(g)
@@ -227,22 +228,21 @@ private val OUTER_LABEL_SET: Set<Int> =
     setOf(30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95)
 
 /** Inner fixed scale: 10..25 every integer, 30..55 every 5, plus 70/80/90
- *  abbreviated as 7/8/9 in the upper half. 60 is excluded because the
- *  white-arrow MPH index replaces the numeral entirely (per image 22). */
+ *  abbreviated as 7/8/9 in the upper half. 60 is excluded (replaced by the
+ *  white MPH arrow). 36 is excluded — the user asked for no red "36" text
+ *  label on the inner bezel; the red triangle at 36 stays. */
 private val INNER_LABEL_MAP: Map<Int, String> =
     (10..25).associateWith { it.toString() } +
     listOf(30, 35, 40, 45, 50, 55).associateWith { it.toString() } +
-    mapOf(36 to "36", 70 to "7", 80 to "8", 90 to "9")
-    // 60 intentionally absent — replaced by the white-arrow MPH index.
+    mapOf(70 to "7", 80 to "8", 90 to "9")
 
 /** Integer scale values where a RED TRIANGLE (or the white arrow at inner
  *  60) replaces the regular WHITE tick. NAUT triangle is at scale 33;
  *  STAT triangle is at scale 38 — both replace their white ticks. */
 private val OUTER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 36, 60)
 private val INNER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 33, 36, 38, 60)
-/** Inner numerals drawn in RED — the unit index (10) and the 60×60=3600
- *  time-conversion index (36). 35 and 40 are regular WHITE numerals. */
-private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10, 36)
+/** Inner numerals drawn in RED — only the unit index (10) now. */
+private val INNER_RED_NUMERAL_VALUES: Set<Int> = setOf(10)
 
 // =============================================================== ticks
 
@@ -265,10 +265,16 @@ private fun isInteger(v: Double): Boolean = kotlin.math.abs(v - round(v)) < 1e-6
 private fun isHalfStep(v: Double): Boolean = kotlin.math.abs((v * 2.0) - round(v * 2.0)) < 1e-6 && !isInteger(v)
 
 private fun tickRank(v: Double, isLabelled: Boolean): TickRank {
-    if (isLabelled) return TickRank.TALL
+    val intV = v.toInt()
+    val isMultipleOf5 = isInteger(v) && intV % 5 == 0
+    // TALL only at the major-five labelled values (10, 15, 20, 25, 30, ..., 95).
+    // Other labelled integers (11..14, 16..19, 21..24) get MEDIUM, so the
+    // 12-25 range shows the alternating tall / medium pattern from image 26.
+    if (isMultipleOf5 && isLabelled) return TickRank.TALL
+    if (isLabelled) return TickRank.MEDIUM
     return when {
         v < 12.0 -> if (isHalfStep(v)) TickRank.MEDIUM else TickRank.SHORT
-        v < 25.0 -> TickRank.MEDIUM   // every integer tick (no sub-ticks here)
+        v < 25.0 -> TickRank.MEDIUM
         else -> if (isInteger(v)) TickRank.MEDIUM else TickRank.SHORT
     }
 }
@@ -543,12 +549,20 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     )
 
     // White MPH arrow at inner 60 — replaces the red triangle (per image 22).
+    // The "MPH" text label is drawn separately by [drawMphLabel] AFTER
+    // [drawDialBackground], otherwise the green dial paints over it.
     val mphAngle = DialMath.drawAngleDeg(60.0)
     drawMphArrow(g, mphAngle)
-    // "MPH" text BELOW the arrow, in WHITE (not red), with a tiny gap so
-    // the text doesn't touch the arrow's base. Drawn just inside the
-    // chapter-ring inner edge, on the green dial.
-    val mphTextR = g.rChapterInner - g.rOuter * 0.028f
+}
+
+/**
+ * "MPH" caption sits just inside the chapter-ring inner edge, on the green
+ * dial, directly below the white MPH arrow. Must be drawn AFTER the dial
+ * background / sunburst layers so it isn't painted over.
+ */
+private fun DrawScope.drawMphLabel(g: DialGeom, measurer: TextMeasurer) {
+    val mphAngle = DialMath.drawAngleDeg(60.0)
+    val mphTextR = g.rChapterInner - g.rOuter * 0.045f
     drawScaleNumeralUpright(
         measurer = measurer,
         text = "MPH",
@@ -556,8 +570,8 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         radius = mphTextR,
         center = g.center,
         color = DialPalette.Numeral,
-        sizeSp = (g.rOuter * 0.034f / density).sp,
-        bold = false
+        sizeSp = (g.rOuter * 0.044f / density).sp,
+        bold = true
     )
 }
 
