@@ -226,11 +226,21 @@ private val OUTER_LABEL_SET: Set<Int> =
     (10..25).toSet() +
     setOf(30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95)
 
-/** Inner fixed scale: like the outer, but in the upper half only every 10 (with 70/80/90 abbreviated as 7/8/9). */
+/** Inner fixed scale: like the outer, but in the upper half only every 10 (with 70/80/90 abbreviated as 7/8/9).
+ *  Values that have a red triangle marker (10, 35, 40) are intentionally
+ *  EXCLUDED so the marker triangle replaces the regular numeral. 36 keeps
+ *  its red numeral (alongside the red triangle). */
 private val INNER_LABEL_MAP: Map<Int, String> =
-    (10..25).associateWith { it.toString() } +
-    listOf(30, 35, 40, 45, 50, 55).associateWith { it.toString() } +
-    mapOf(60 to "60", 70 to "7", 80 to "8", 90 to "9")
+    (11..25).associateWith { it.toString() } +                       // 10 excluded
+    listOf(30, 45, 50, 55).associateWith { it.toString() } +         // 35, 40 excluded
+    mapOf(60 to "60", 70 to "7", 80 to "8", 90 to "9", 36 to "36")
+
+/** Integer scale values where a RED TRIANGLE replaces the regular tick.
+ *  Per photo image 21: the red arrows sit ON the markers, not next to them. */
+private val OUTER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 36, 60)
+private val INNER_TICK_REPLACED_BY_TRIANGLE: Set<Int> = setOf(10, 35, 36, 40, 60)
+/** Outer values where the regular numeral is also hidden (pure triangle marker). */
+private val OUTER_NUMERAL_HIDDEN: Set<Int> = setOf(10)
 
 // =============================================================== ticks
 
@@ -331,7 +341,12 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
-        val isLabelled = isInteger(v) && intV in OUTER_LABEL_SET
+        val isInt = isInteger(v)
+        // At values where a red triangle takes the tick's place, skip drawing
+        // the normal white tick.
+        if (isInt && intV in OUTER_TICK_REPLACED_BY_TRIANGLE) continue
+
+        val isLabelled = isInt && intV in OUTER_LABEL_SET
         val rank = tickRank(v, isLabelled)
         val angle = DialMath.drawAngleDeg(v)
         val rad = angle * PI / 180.0
@@ -360,8 +375,8 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
             start = Offset(sx, sy), end = Offset(ex, ey),
             strokeWidth = sw
         )
-        if (isLabelled) {
-            val isRed = (intV == 60 || intV == 10 || intV == 36)
+        if (isLabelled && intV !in OUTER_NUMERAL_HIDDEN) {
+            val isRed = (intV == 60 || intV == 36)
             drawScaleNumeralUpright(
                 measurer = measurer,
                 text = intV.toString(),
@@ -373,13 +388,17 @@ private fun DrawScope.drawRotatingBezelScale(g: DialGeom, measurer: TextMeasurer
             )
         }
     }
-    // Red triangles on outer at 10 / 36 / 60
+    // Red triangles on outer at 10 / 36 / 60 — TIP at the step gap (just
+    // past the bezel inner edge) so each triangle on the outer scale
+    // visually TOUCHES the corresponding triangle on the inner scale at
+    // the same value when the bezel is aligned (per image 21).
     listOf(10.0, 36.0, 60.0).forEach { v ->
         val angle = DialMath.drawAngleDeg(v)
         drawTriangleAtAngle(
             center = g.center, angleDeg = angle.toFloat(),
-            radius = ringMid + ringWidth * 0.40f, size = ringWidth * 0.18f,
-            color = DialPalette.Red, inward = true
+            radius = ringMid - ringWidth * 0.376f,    // base inside bezel ring's lower half
+            size = ringWidth * 0.18f,
+            color = DialPalette.Red, inward = true     // tip ≈ 0.847 r
         )
     }
 }
@@ -406,7 +425,9 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
 
     for (v in allTickValues()) {
         val intV = round(v).toInt()
-        val isLabelled = isInteger(v) && intV in INNER_LABEL_MAP
+        val isInt = isInteger(v)
+        if (isInt && intV in INNER_TICK_REPLACED_BY_TRIANGLE) continue
+        val isLabelled = isInt && intV in INNER_LABEL_MAP
         val rank = tickRank(v, isLabelled)
         val angle = DialMath.drawAngleDeg(v)
         val rad = angle * PI / 180.0
@@ -450,10 +471,15 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
         }
     }
 
-    // KM / STAT / NAUT labels — sit slightly OUTWARD of the regular inner
-    // numerals so the red marker text reads near the OUTER edge of the
-    // chapter ring (matching photo image 16 where "STAT" / "NAUT" letters
-    // are on the outer half of the chapter ring).
+    // Inner red-triangle markers — TIPS land at the step gap (~0.847 r) so
+    // they touch the matching outer triangles when aligned (per image 21).
+    // The triangle base is the smaller-radius end; tip points outward
+    // toward the bezel.
+    val triangleBaseR = midR + width * 0.341f
+    val triangleSize = width * 0.18f
+    val triangleSizeSmall = width * 0.14f
+
+    // KM (text only) / STAT (triangle + "STAT. 40") / NAUT (triangle + "NAUT. 35")
     val markerLabelR = numeralR + width * 0.22f
     Markers.all.filter { it.side == ScaleSide.INNER && it.style != MarkerStyle.RED_NUMERAL }
         .forEach { m ->
@@ -461,7 +487,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
             if (m.style == MarkerStyle.TRIANGLE_OUTWARD) {
                 drawTriangleAtAngle(
                     center = g.center, angleDeg = angle.toFloat(),
-                    radius = midR + width * 0.40f, size = width * 0.18f,
+                    radius = triangleBaseR, size = triangleSize,
                     color = DialPalette.Red, inward = false
                 )
             }
@@ -479,33 +505,26 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
             }
         }
 
-    // Bracketing red triangles around inner red 10 (the unit index).
-    // Per photo image 10.
+    // Single red triangle at inner 10 — the unit index. No bracketing pair,
+    // no numeral — just one triangle, matching image 20's "two triangles
+    // total" instruction (one outer + one inner).
     val red10Angle = DialMath.drawAngleDeg(10.0)
-    listOf(-2.5, +2.5).forEach { delta ->
-        drawTriangleAtAngle(
-            center = g.center,
-            angleDeg = (red10Angle + delta).toFloat(),
-            radius = midR + width * 0.38f,
-            size = width * 0.13f,
-            color = DialPalette.Red,
-            inward = false
-        )
-    }
+    drawTriangleAtAngle(
+        center = g.center, angleDeg = red10Angle.toFloat(),
+        radius = triangleBaseR, size = triangleSize,
+        color = DialPalette.Red, inward = false
+    )
 
-    // Red triangle marker at scale-value 36 on inner — the time-conversion
-    // marker (60 × 60 = 3600). Per photo image 16, three red triangles
-    // appear in a row across NAUT (35) → red-36 → STAT (40); previously I
-    // only had NAUT and STAT, missing the central one.
+    // Red triangle at inner 36 — the time-conversion marker.
     val red36Angle = DialMath.drawAngleDeg(36.0)
     drawTriangleAtAngle(
-        center = g.center,
-        angleDeg = red36Angle.toFloat(),
-        radius = midR + width * 0.40f,
-        size = width * 0.16f,
-        color = DialPalette.Red,
-        inward = false
+        center = g.center, angleDeg = red36Angle.toFloat(),
+        radius = triangleBaseR, size = triangleSizeSmall,
+        color = DialPalette.Red, inward = false
     )
+
+    // (Inner red 60 / MPH triangle is drawn by the Markers.all loop above —
+    //  it has style TRIANGLE_OUTWARD, so we don't need an explicit triangle here.)
 }
 
 // =============================================================== dial background
@@ -617,14 +636,17 @@ private fun DrawScope.drawCurvedSwissMade(g: DialGeom) {
         // counterclockwise (negative sweep) so the path goes from the
         // higher angle to the lower angle.
         //
-        // SWISS — left of the 6 o'clock baton: arc from ~135° down to ~100°.
+        // SWISS — IMMEDIATELY left of the 6 o'clock baton (between 6 and 7,
+        // not all the way out to 7). Per image 17, both words sit close to
+        // the central baton.  Arc from 113° down to 95°.
         val swissPath = android.graphics.Path().apply {
-            addArc(rect, 138f, -36f)
+            addArc(rect, 113f, -18f)
         }
         canvas.nativeCanvas.drawTextOnPath("SWISS", swissPath, 0f, 0f, paint)
-        // MADE — right of the 6 o'clock baton: arc from ~80° down to ~45°.
+        // MADE — IMMEDIATELY right of the baton (between 5 and 6). Arc
+        // from 85° down to 67°.
         val madePath = android.graphics.Path().apply {
-            addArc(rect, 78f, -36f)
+            addArc(rect, 85f, -18f)
         }
         canvas.nativeCanvas.drawTextOnPath("MADE", madePath, 0f, 0f, paint)
     }
@@ -977,28 +999,34 @@ private fun DrawScope.drawChronoSecondsHand(g: DialGeom, chronoMs: Long) {
         strokeWidth = g.rDial * 0.013f
     )
 
-    // Chrome counterweight stem (hub → tail, OPPOSITE direction)
+    // Chrome counterweight stem (hub → tail, OPPOSITE direction).
+    // Per image 19: the stem is silver and TAPERS slightly outward toward
+    // the tail (no red dot), like a small chrome flare at the end.
     val tailLen = g.rDial * 0.16f
     val tailX = g.center.x - tailLen * cosA
     val tailY = g.center.y - tailLen * sinA
-    drawLine(
-        color = DialPalette.HandFrame,
-        start = g.center,
-        end = Offset(tailX, tailY),
-        strokeWidth = g.rDial * 0.020f
-    )
-    drawLine(
-        color = DialPalette.Hand,
-        start = g.center,
-        end = Offset(tailX, tailY),
-        strokeWidth = g.rDial * 0.014f
-    )
-    // Red dot at the very tail
-    drawCircle(
-        color = DialPalette.SecondHand,
-        radius = g.rDial * 0.014f,
-        center = Offset(tailX, tailY)
-    )
+    val perpX = -sinA
+    val perpY = cosA
+    val widthHubOuter = g.rDial * 0.012f
+    val widthTailOuter = g.rDial * 0.020f
+    val widthHubInner = g.rDial * 0.008f
+    val widthTailInner = g.rDial * 0.014f
+    val stemFrame = Path().apply {
+        moveTo(g.center.x + perpX * widthHubOuter, g.center.y + perpY * widthHubOuter)
+        lineTo(g.center.x - perpX * widthHubOuter, g.center.y - perpY * widthHubOuter)
+        lineTo(tailX - perpX * widthTailOuter, tailY - perpY * widthTailOuter)
+        lineTo(tailX + perpX * widthTailOuter, tailY + perpY * widthTailOuter)
+        close()
+    }
+    drawPath(stemFrame, color = DialPalette.HandFrame)
+    val stemInner = Path().apply {
+        moveTo(g.center.x + perpX * widthHubInner, g.center.y + perpY * widthHubInner)
+        lineTo(g.center.x - perpX * widthHubInner, g.center.y - perpY * widthHubInner)
+        lineTo(tailX - perpX * widthTailInner, tailY - perpY * widthTailInner)
+        lineTo(tailX + perpX * widthTailInner, tailY + perpY * widthTailInner)
+        close()
+    }
+    drawPath(stemInner, color = DialPalette.Hand)
 }
 
 private fun DrawScope.drawHandHub(g: DialGeom) {

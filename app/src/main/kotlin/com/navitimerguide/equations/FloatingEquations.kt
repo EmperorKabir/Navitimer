@@ -16,15 +16,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.navitimerguide.dial.DialMath
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * Plain-English equation panel. Each section has:
- *   • Title (the operation name)
- *   • A short, friendly explanation that says what the bezel is doing
- *     in everyday language — no maths jargon and no "Now" word.
- *   • The live result in a short sentence using the user's typed
- *     Outer / Inner anchors and the bezel's current rotation.
+ * Plain-English equation panel.
+ * - No hyphens in scale references ("inner 10", not "inner-10").
+ * - Singular / plural words match the value ("1 hour", "2 hours").
+ * - The bezel-derived multiplier and the user's typed Outer / Inner
+ *   anchors drive every live result.
  */
 @Composable
 fun FloatingEquations(
@@ -57,9 +57,9 @@ fun FloatingEquations(
                 "Pick a number on the outer ring and turn the bezel so it lines " +
                 "up with a number on the inner ring. The bezel has just done a " +
                 "division for you. To read the answer, look at the position " +
-                "above inner-10.",
+                "above inner 10.",
             live = if (x != null && y != null && y != 0.0)
-                "${fmt(x)} on the outer divided by ${fmt(y)} on the inner gives ${fmt(x / y)}."
+                "${fmt(x)} on the outer ring divided by ${fmt(y)} on the inner ring gives ${fmt(x / y)}."
             else "Type a number for Outer and Inner above to see the answer."
         )
 
@@ -67,26 +67,27 @@ fun FloatingEquations(
         Section(
             title = "Multiplication",
             explanation =
-                "The same idea works the other way around. Line up the outer-10 " +
-                "with any number on the inner ring; that number is your " +
-                "multiplier. Whatever you read on the inner ring will appear " +
-                "multiplied on the outer ring above it.",
+                "The same idea works the other way. Line up outer 10 with any " +
+                "number on the inner ring, and that number becomes your " +
+                "multiplier. Pick a value on the inner side and read the " +
+                "bigger result on the outer side directly above it.",
             live = if (y != null)
                 "The bezel is set to multiply by ${fmt(k)}, so ${fmt(y)} becomes ${fmt(y * k)}."
-            else "Set a multiplier by sliding the bezel; the live value will appear here."
+            else "Slide the bezel to set a multiplier; the live value will appear here."
         )
 
         // ---------------- Speed / Time / Distance
         Section(
-            title = "Speed (miles per hour)",
+            title = "Speed in miles per hour",
             explanation =
-                "Speed is distance divided by time, scaled to per-hour. Line up " +
-                "your distance in miles on the outer ring with the time you took " +
-                "in minutes on the inner ring. The mph reading is at the red 60 " +
-                "marker at 12 o'clock (the MPH index).",
+                "Speed is distance divided by time, scaled to per hour. Line up " +
+                "your distance in miles on the outer ring with how long it took " +
+                "in minutes on the inner ring. The mph reading appears at the " +
+                "red 60 marker at 12 o'clock (the MPH index).",
             live = if (x != null && y != null && y != 0.0)
-                "Travelling ${fmt(x)} miles in ${fmt(y)} minutes works out to ${fmt(x / y * 60.0)} mph."
-            else "Speed reads ${fmt(mph)} above the MPH index right now."
+                "Travelling ${fmt(x)} ${unit(x, "mile", "miles")} in ${fmt(y)} " +
+                "${unit(y, "minute", "minutes")} works out to ${fmt(x / y * 60.0)} mph."
+            else "Speed at the MPH index right now reads ${fmt(mph)}."
         )
 
         // ---------------- Statute miles ↔ km
@@ -97,22 +98,26 @@ fun FloatingEquations(
                 "STAT marker between 35 and 40 on the inner ring, and a KM " +
                 "marker between 60 and 65. Line up your miles value with STAT, " +
                 "then read the kilometres at KM.",
-            live = if (x != null)
-                "${fmt(x)} miles works out to ${fmt(x * DialMath.MILE_TO_KM)} kilometres."
-            else "Conversion factor: 1 mile = 1.609 km."
+            live = if (x != null) {
+                val kmVal = x * DialMath.MILE_TO_KM
+                "${fmt(x)} ${unit(x, "mile", "miles")} works out to " +
+                "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")}."
+            } else "1 mile is 1.609 kilometres."
         )
 
         // ---------------- Nautical miles ↔ km
         Section(
             title = "Nautical miles to kilometres",
             explanation =
-                "A nautical mile is 1.852 kilometres — it's used at sea and in " +
-                "the air. The NAUT marker (small red triangle near 35 on the " +
-                "inner ring) plus the KM marker do the same trick as STAT, but " +
-                "for nautical miles instead of land miles.",
-            live = if (x != null)
-                "${fmt(x)} nautical miles works out to ${fmt(x * DialMath.NAUT_TO_KM)} kilometres."
-            else "Conversion factor: 1 nautical mile = 1.852 km."
+                "A nautical mile is 1.852 kilometres — used at sea and in the " +
+                "air. The NAUT marker (small red triangle near 35 on the inner " +
+                "ring) plus the KM marker do the same trick as STAT, but for " +
+                "nautical miles instead of land miles.",
+            live = if (x != null) {
+                val kmVal = x * DialMath.NAUT_TO_KM
+                "${fmt(x)} ${unit(x, "nautical mile", "nautical miles")} works out to " +
+                "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")}."
+            } else "1 nautical mile is 1.852 kilometres."
         )
 
         // ---------------- Hours / Minutes / Seconds
@@ -122,13 +127,14 @@ fun FloatingEquations(
                 "There are 60 minutes in an hour and 60 seconds in a minute, so " +
                 "60 × 60 = 3600 seconds in an hour. The dial has red markers " +
                 "right at 60 and at 36 (which stands for 3600). Line up your " +
-                "hours on the outer ring against inner-10, then read the " +
-                "minutes above inner-60 and the seconds above inner-36 — all in " +
+                "hours value on the outer ring against inner 10, then read the " +
+                "minutes above inner 60 and the seconds above inner 36 — all in " +
                 "one go.",
-            live = "${fmt(k)} hours is the same as ${fmt(k * 60)} minutes, " +
-                "or ${fmt(k * 3600)} seconds.\n" +
-                "On the dial: above inner-60 reads ${fmt(above60)}, " +
-                "and above inner-36 reads ${fmt(above36)}."
+            live = "${fmt(k)} ${unit(k, "hour", "hours")} is the same as " +
+                "${fmt(k * 60)} ${unit(k * 60, "minute", "minutes")}, or " +
+                "${fmt(k * 3600)} ${unit(k * 3600, "second", "seconds")}.\n" +
+                "On the dial: above inner 60 reads ${fmt(above60)}, " +
+                "and above inner 36 reads ${fmt(above36)}."
         )
     }
 }
@@ -153,9 +159,15 @@ private fun Section(title: String, explanation: String, live: String) {
 private fun fmt(value: Double): String {
     if (!value.isFinite()) return "—"
     val rounded = value.roundToInt()
-    if (kotlin.math.abs(value - rounded) < 1e-6 && kotlin.math.abs(value) < 1e9) {
+    if (abs(value - rounded) < 1e-6 && abs(value) < 1e9) {
         return rounded.toString()
     }
     val s = "%.4f".format(value).trimEnd('0').trimEnd('.')
     return s.ifEmpty { "0" }
+}
+
+/** Returns [singular] when the value is exactly 1 (within tolerance), else [plural]. */
+private fun unit(value: Double, singular: String, plural: String): String {
+    val isOne = abs(value - 1.0) < 1e-6
+    return if (isOne) singular else plural
 }

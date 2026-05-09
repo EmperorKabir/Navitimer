@@ -23,8 +23,10 @@ object Markers {
         Marker(DialMath.RED_10, ScaleSide.INNER, MarkerStyle.RED_NUMERAL, "10", isRed = true),
         Marker(DialMath.RED_36, ScaleSide.INNER, MarkerStyle.RED_NUMERAL, "36", isRed = true),
         Marker(DialMath.KM_MARKER, ScaleSide.INNER, MarkerStyle.TEXT, "KM", isRed = true),
-        Marker(DialMath.STAT_MARKER, ScaleSide.INNER, MarkerStyle.TRIANGLE_OUTWARD, "STAT", isRed = true),
-        Marker(DialMath.NAUT_MARKER, ScaleSide.INNER, MarkerStyle.TRIANGLE_OUTWARD, "NAUT", isRed = true),
+        // STAT/NAUT labels include the numeral so the chapter ring reads
+        // "STAT. 40" / "NAUT. 35" as a single phrase, exactly like the photo.
+        Marker(DialMath.STAT_MARKER, ScaleSide.INNER, MarkerStyle.TRIANGLE_OUTWARD, "STAT. 40", isRed = true),
+        Marker(DialMath.NAUT_MARKER, ScaleSide.INNER, MarkerStyle.TRIANGLE_OUTWARD, "NAUT. 35", isRed = true),
 
         // Outer rotating scale ---------------------------------------------
         Marker(DialMath.RED_60_MPH, ScaleSide.OUTER, MarkerStyle.TRIANGLE_INWARD, null, isRed = true),
