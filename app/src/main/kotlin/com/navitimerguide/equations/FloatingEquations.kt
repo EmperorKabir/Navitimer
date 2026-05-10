@@ -67,106 +67,112 @@ fun FloatingEquations(
         // ---------------- Division (with alternative direction)
         Section(
             title = "Division",
-            explanation =
+            primaryExplanation =
                 "Pick a number on the outer ring and turn the bezel so it lines " +
                 "up with a number on the inner ring. The bezel has just done a " +
-                "division for you — read the answer above inner 10.\n\n" +
-                "Alternative: line up an inner number with an outer number; the " +
-                "answer (inner ÷ outer) is the inner value below outer 10.",
-            primary = if (x != null && y != null && y != 0.0)
+                "division for you — read the answer above inner 10.",
+            primaryLive = if (x != null && y != null && y != 0.0)
                 "Outer ${fmt(x)} ÷ inner ${fmt(y)} = ${fmt(x / y)}."
             else "Type Outer and Inner above to see the live answer.",
-            alternative = if (y != null && x != null && x != 0.0)
-                "Alternative: inner ${fmt(y)} ÷ outer ${fmt(x)} = ${fmt(y / x)}."
+            altExplanation =
+                "Alternative: line up an inner number with an outer number; " +
+                "the answer (inner ÷ outer) is the inner value below outer 10.",
+            altLive = if (y != null && x != null && x != 0.0)
+                "Inner ${fmt(y)} ÷ outer ${fmt(x)} = ${fmt(y / x)}."
             else null
         )
 
         // ---------------- Multiplication (with alternative direction)
         Section(
             title = "Multiplication",
-            explanation =
+            primaryExplanation =
                 "Line up outer 10 with any number on the inner ring — that " +
                 "number becomes your multiplier. Pick a value on the inner side " +
-                "and read the bigger result on the outer side directly above it." +
-                "\n\nAlternative: line up inner 10 with the outer multiplier; " +
-                "any inner number reads on the outer scale × that multiplier.",
-            primary = if (y != null)
+                "and read the bigger result on the outer side directly above it.",
+            primaryLive = if (y != null)
                 "Bezel multiplier is ${fmt(k)}; inner ${fmt(y)} × ${fmt(k)} = ${fmt(y * k)}."
             else "Slide the bezel to set a multiplier; the live value will appear here.",
-            alternative = if (x != null && invK.isFinite())
-                "Alternative: outer ${fmt(x)} × ${fmt(invK)} = ${fmt(x * invK)} on inner."
+            altExplanation =
+                "Alternative: line up inner 10 with the outer multiplier; any " +
+                "inner number reads on the outer scale × that multiplier.",
+            altLive = if (x != null && invK.isFinite())
+                "Outer ${fmt(x)} × ${fmt(invK)} = ${fmt(x * invK)} on inner."
             else null
         )
 
         // ---------------- Speed
         Section(
             title = "Speed in miles per hour",
-            explanation =
+            primaryExplanation =
                 "Speed is distance ÷ time, scaled to per hour. Line up your " +
                 "distance in miles on the outer ring with how long it took in " +
                 "minutes on the inner ring. The mph reading appears above the " +
                 "12 o'clock MPH index.",
-            primary = if (x != null && y != null && y != 0.0)
+            primaryLive = if (x != null && y != null && y != 0.0)
                 "${fmt(x)} ${unit(x, "mile", "miles")} in ${fmt(y)} " +
                 "${unit(y, "minute", "minutes")} = ${fmt(x / y * 60.0)} mph."
             else "MPH index reads ${fmt(mph)} mph at the current rotation.",
-            alternative = null
+            altExplanation = null,
+            altLive = null
         )
 
         // ---------------- Time
         Section(
             title = "Time for a journey",
-            explanation =
+            primaryExplanation =
                 "With a speed already on the dial, the bezel will tell you how " +
                 "long any distance will take — read the inner value below any " +
                 "outer-ring distance.",
-            primary = if (x != null && mph.isFinite() && mph > 0)
+            primaryLive = if (x != null && mph.isFinite() && mph > 0)
                 "At ${fmt(mph)} mph, ${fmt(x)} ${unit(x, "mile", "miles")} takes " +
                 "${fmt(x * 60.0 / mph)} ${unit(x * 60.0 / mph, "minute", "minutes")}."
             else "Set a speed on the dial to see how long a distance takes.",
-            alternative = null
+            altExplanation = null,
+            altLive = null
         )
 
         // ---------------- Statute miles ↔ km
         Section(
             title = "Miles to kilometres",
-            explanation =
+            primaryExplanation =
                 "Line up your miles value on the outer ring with the small red " +
-                "STAT triangle. Read the kilometres above the KM marker. The " +
-                "slide-rule does miles × 1.609 in one move.",
-            primary =
+                "STAT triangle. Read the kilometres above the KM marker.",
+            primaryLive =
                 "${fmt(statVal)} ${unit(statVal, "statute mile", "statute miles")} = " +
                 "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")}.",
-            alternative = null
+            altExplanation = null,
+            altLive = null
         )
 
         // ---------------- Nautical miles ↔ km
         Section(
             title = "Nautical miles to kilometres",
-            explanation =
+            primaryExplanation =
                 "Line up your nautical-mile value with the NAUT triangle. Read " +
-                "the kilometres above the KM marker. Same trick as STAT, but " +
-                "for sea / air distances (× 1.852).",
-            primary =
+                "the kilometres above the KM marker — same trick as STAT, but " +
+                "for sea / air distances.",
+            primaryLive =
                 "${fmt(nautVal)} ${unit(nautVal, "nautical mile", "nautical miles")} = " +
                 "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")}.",
-            alternative = null
+            altExplanation = null,
+            altLive = null
         )
 
         // ---------------- Hours / Minutes / Seconds (with alternative)
         Section(
             title = "Hours, minutes and seconds",
-            explanation =
+            primaryExplanation =
                 "60 minutes × 60 seconds per minute = 3600 seconds per hour. " +
                 "Red markers sit at 60 and at 36 (which stands for 3600). Line " +
                 "up your hours value on the outer ring against inner 10, then " +
-                "read the minutes above inner 60 and the seconds above inner 36." +
-                "\n\nAlternative: drive the conversion from any of the three " +
-                "anchors (10 / 60 / 36) — the bezel keeps the others in sync.",
-            primary = "${fmt(k)} ${unit(k, "hour", "hours")} = " +
+                "read the minutes above inner 60 and the seconds above inner 36.",
+            primaryLive = "${fmt(k)} ${unit(k, "hour", "hours")} = " +
                 "${fmt(k * 60)} ${unit(k * 60, "minute", "minutes")} = " +
                 "${fmt(k * 3600)} ${unit(k * 3600, "second", "seconds")}.",
-            alternative =
+            altExplanation =
+                "Alternative: drive the conversion from any of the three " +
+                "anchors (10 / 60 / 36) — the bezel keeps the others in sync.",
+            altLive =
                 "Bezel reads above inner 60: ${fmt(above60)}; above inner 36: ${fmt(above36)}."
         )
     }
@@ -175,9 +181,10 @@ fun FloatingEquations(
 @Composable
 private fun Section(
     title: String,
-    explanation: String,
-    primary: String,
-    alternative: String?
+    primaryExplanation: String,
+    primaryLive: String,
+    altExplanation: String?,
+    altLive: String?
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -187,23 +194,31 @@ private fun Section(
         )
         Spacer(Modifier.size(2.dp))
         Text(
-            explanation,
+            primaryExplanation,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.size(4.dp))
         Text(
-            primary, style = MaterialTheme.typography.bodyMedium,
+            primaryLive, style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary
         )
-        if (alternative != null) {
-            Spacer(Modifier.size(2.dp))
+        if (altExplanation != null) {
+            Spacer(Modifier.size(8.dp))
             Text(
-                alternative, style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.tertiary
+                altExplanation,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (altLive != null) {
+                Spacer(Modifier.size(4.dp))
+                Text(
+                    altLive, style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
         }
     }
 }

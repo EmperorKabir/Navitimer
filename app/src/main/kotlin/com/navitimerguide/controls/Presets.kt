@@ -76,15 +76,55 @@ fun CurvedPresets(
             )
         }
 
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(4.dp))
 
-        // ----- RIGHT: Examples header + arched chip row -----
-        Column(
-            modifier = Modifier.fillMaxHeight(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        // ----- RIGHT: arched chip row with EXAMPLES caption sitting LOW -----
+        // Pronounced parabolic curve so the chips trace the top of the
+        // round watch face below them. Centre chip ("Hours") highest;
+        // outer chips ("× 2.5", "nm → km") drop ~44 dp lower. The
+        // EXAMPLES caption is centred over the arc, vertically positioned
+        // *below* the centre chip so it nestles inside the curve.
+        Box(modifier = Modifier.fillMaxHeight().fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Top
+            ) {
+                examples.forEachIndexed { i, (label, onClick) ->
+                    val n = examples.size
+                    val t = i.toDouble() / (n - 1).coerceAtLeast(1) - 0.5
+                    // Steeper parabolic drop. At t=±0.5 → drop ≈ 44 dp;
+                    // at t=±0.25 (the "× 3.5" / "mi → km" chips) → ≈ 11 dp;
+                    // centre chip (t=0) sits at the top of the box.
+                    val drop = (t * t * 176.0).dp
+                    AssistChip(
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onClick()
+                        },
+                        label = {
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontSize = 12.sp
+                                )
+                            )
+                        },
+                        modifier = Modifier.offset(y = drop),
+                        colors = AssistChipDefaults.assistChipColors()
+                    )
+                }
+            }
+            // EXAMPLES caption nestled inside the arc, just under the
+            // centre chip. Vertically near the bottom of the row so it
+            // sits visually centred among the lower side-chips.
             Text(
                 "EXAMPLES",
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 56.dp),
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -92,38 +132,6 @@ fun CurvedPresets(
                 ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth().height(58.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    examples.forEachIndexed { i, (label, onClick) ->
-                        val n = examples.size
-                        val t = i.toDouble() / (n - 1).coerceAtLeast(1) - 0.5
-                        // Parabolic drop — middle chips highest, sides drop down.
-                        val drop = (t * t * 38.0).dp
-                        AssistChip(
-                            onClick = {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onClick()
-                            },
-                            label = {
-                                Text(
-                                    label,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontSize = 12.sp
-                                    )
-                                )
-                            },
-                            modifier = Modifier.offset(y = drop),
-                            colors = AssistChipDefaults.assistChipColors()
-                        )
-                    }
-                }
-            }
         }
     }
 }

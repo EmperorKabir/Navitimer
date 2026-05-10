@@ -152,7 +152,9 @@ private fun DialColumn(
         CurvedPresets(
             onSetAngle = vm::setRotation,
             onReset = vm::reset,
-            modifier = Modifier.fillMaxWidth().height(78.dp)
+            // Tall enough to fit the steeper chip arc (centre chip up
+            // top, outer chips ~44 dp lower) plus the EXAMPLES caption.
+            modifier = Modifier.fillMaxWidth().height(96.dp)
         )
 
         BoxWithConstraints(
