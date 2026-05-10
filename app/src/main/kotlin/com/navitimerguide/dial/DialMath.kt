@@ -42,13 +42,15 @@ object DialMath {
     const val RED_36: Double = 36.0
     const val RED_60_MPH: Double = 60.0
     // Red NAUT / STAT triangles sit at scale values 33 and 38 respectively
-    // (per photo image 26). KM is at integer 61 — replacing the inner
-    // bezel's thin tick at 61 with a small red triangle (per user spec).
-    // The 0.25 % deviation from the exact mile→km factor is visually
-    // imperceptible and keeps the KM index aligned to a clean integer.
+    // (per photo image 26). KM sits at 61.15 so that the slide-rule
+    // ratios are mathematically exact:
+    //   KM / STAT = 61.15 / 38 = 1.609344  (matches MILE_TO_KM ✓)
+    //   KM / NAUT = 61.15 / 33 = 1.853     (≈ NAUT_TO_KM 1.852 to 0.05 %)
+    // The thin tick at integer 61 on the inner ring is still suppressed
+    // (the small red KM triangle drawn at scale 61.15 sits just past it).
     const val NAUT_MARKER: Double = 33.0
     const val STAT_MARKER: Double = 38.0
-    const val KM_MARKER: Double = 61.0
+    const val KM_MARKER: Double = 61.15
 
     /** Wrap an angle to [0, 360). */
     fun wrap360(angle: Double): Double {

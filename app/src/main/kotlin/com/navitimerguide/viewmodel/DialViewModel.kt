@@ -19,32 +19,46 @@ class DialViewModel : ViewModel() {
     private val _rotationDegrees = MutableStateFlow(0.0)
     val rotationDegrees: StateFlow<Double> = _rotationDegrees.asStateFlow()
 
+    // Five inter-connected input fields. Their default reset values are
+    // the slide-rule values that sit above each anchor at rotation = 0.
     private val _outerInput = MutableStateFlow("60")
     val outerInput: StateFlow<String> = _outerInput.asStateFlow()
 
     private val _innerInput = MutableStateFlow("60")
     val innerInput: StateFlow<String> = _innerInput.asStateFlow()
 
+    private val _statInput = MutableStateFlow(formatNum(DialMath.STAT_MARKER))
+    val statInput: StateFlow<String> = _statInput.asStateFlow()
+
+    private val _nautInput = MutableStateFlow(formatNum(DialMath.NAUT_MARKER))
+    val nautInput: StateFlow<String> = _nautInput.asStateFlow()
+
+    private val _kmInput = MutableStateFlow(formatNum(DialMath.KM_MARKER))
+    val kmInput: StateFlow<String> = _kmInput.asStateFlow()
+
     fun rotateBy(deltaDegrees: Double) {
         _rotationDegrees.value = DialMath.wrap360(_rotationDegrees.value + deltaDegrees)
-        syncOuterFromRotation()
+        refreshAllFromRotation()
     }
 
     fun setRotation(angle: Double) {
         _rotationDegrees.value = DialMath.wrap360(angle)
-        syncOuterFromRotation()
+        refreshAllFromRotation()
     }
 
     fun snapAlign(outerX: Double, innerY: Double) {
         if (outerX <= 0 || innerY <= 0) return
         _rotationDegrees.value = DialMath.alignRotation(outerX, innerY)
-        syncOuterFromRotation()
+        refreshAllFromRotation()
     }
 
     fun reset() {
         _rotationDegrees.value = 0.0
         _outerInput.value = "60"
         _innerInput.value = "60"
+        _statInput.value = formatNum(DialMath.STAT_MARKER)
+        _nautInput.value = formatNum(DialMath.NAUT_MARKER)
+        _kmInput.value = formatNum(DialMath.KM_MARKER)
     }
 
     fun setMultiplier(k: Double) {
@@ -56,22 +70,25 @@ class DialViewModel : ViewModel() {
 
     // ------------------------------------------------------------- inputs
     //
-    // Both fields are user-typed, independent strings. Neither is silently
-    // overwritten while the user is typing. The bezel only updates on
-    // commit (focus-out / IME Done), and the OUTER live readout only
-    // refreshes when the bezel itself rotates (drag, preset, reset).
+    // Five user-typed fields. None is silently overwritten while typing
+    // (no live cross-update). On commit (focus-out / IME Done) for any
+    // field, the bezel snaps to align the typed value at that field's
+    // anchor:
+    //   • Outer/Inner → snapAlign(outer, inner)
+    //   • STAT        → snapAlign(stat, STAT_MARKER)
+    //   • NAUT        → snapAlign(naut, NAUT_MARKER)
+    //   • KM          → snapAlign(km,   KM_MARKER)
+    // After the snap, every field except Inner refreshes from the new
+    // rotation. Inner is the user's chosen anchor and stays put.
     //
-    // Nonsense input (empty, multiple dots, etc.) fails parseDouble in
-    // [commitInputs] and is silently ignored — the bezel does nothing
-    // and the field keeps the user's typed text.
+    // Nonsense input (empty, NaN, ≤0) is silently ignored — the bezel
+    // does nothing and the field keeps the user's typed text.
 
-    fun setOuterText(s: String) {
-        _outerInput.value = s
-    }
-
-    fun setInnerText(s: String) {
-        _innerInput.value = s
-    }
+    fun setOuterText(s: String) { _outerInput.value = s }
+    fun setInnerText(s: String) { _innerInput.value = s }
+    fun setStatText(s: String)  { _statInput.value = s }
+    fun setNautText(s: String)  { _nautInput.value = s }
+    fun setKmText(s: String)    { _kmInput.value = s }
 
     fun commitInputs() {
         val x = _outerInput.value.toDoubleOrNull() ?: return
@@ -80,11 +97,26 @@ class DialViewModel : ViewModel() {
         snapAlign(x, y)
     }
 
-    private fun syncOuterFromRotation() {
-        val innerY = _innerInput.value.toDoubleOrNull() ?: return
-        if (innerY <= 0) return
-        val outerX = DialMath.outerValueAtInner(innerY, _rotationDegrees.value)
-        _outerInput.value = formatNum(outerX)
+    fun commitStat() = commitAtMarker(_statInput.value, DialMath.STAT_MARKER)
+    fun commitNaut() = commitAtMarker(_nautInput.value, DialMath.NAUT_MARKER)
+    fun commitKm()   = commitAtMarker(_kmInput.value,   DialMath.KM_MARKER)
+
+    private fun commitAtMarker(text: String, marker: Double) {
+        val v = text.toDoubleOrNull() ?: return
+        if (v <= 0 || !v.isFinite()) return
+        _rotationDegrees.value = DialMath.alignRotation(outerX = v, innerY = marker)
+        refreshAllFromRotation()
+    }
+
+    private fun refreshAllFromRotation() {
+        val rot = _rotationDegrees.value
+        val innerY = _innerInput.value.toDoubleOrNull()
+        if (innerY != null && innerY > 0) {
+            _outerInput.value = formatNum(DialMath.outerValueAtInner(innerY, rot))
+        }
+        _statInput.value = formatNum(DialMath.outerValueAtInner(DialMath.STAT_MARKER, rot))
+        _nautInput.value = formatNum(DialMath.outerValueAtInner(DialMath.NAUT_MARKER, rot))
+        _kmInput.value   = formatNum(DialMath.outerValueAtInner(DialMath.KM_MARKER,   rot))
     }
 
     private fun formatNum(v: Double): String {

@@ -33,6 +33,7 @@ import com.navitimerguide.controls.CurvedPresets
 import com.navitimerguide.dial.WatchDial
 import com.navitimerguide.dial.bezelDragRotation
 import com.navitimerguide.equations.BezelInputs
+import com.navitimerguide.equations.ConverterInputs
 import com.navitimerguide.equations.FloatingEquations
 import com.navitimerguide.viewmodel.DialViewModel
 
@@ -42,6 +43,9 @@ fun NavitimerApp() {
     val rotation by vm.rotationDegrees.collectAsStateWithLifecycle()
     val outerText by vm.outerInput.collectAsStateWithLifecycle()
     val innerText by vm.innerInput.collectAsStateWithLifecycle()
+    val statText by vm.statInput.collectAsStateWithLifecycle()
+    val nautText by vm.nautInput.collectAsStateWithLifecycle()
+    val kmText by vm.kmInput.collectAsStateWithLifecycle()
     val chronoState by vm.chronoState.collectAsStateWithLifecycle()
 
     Scaffold { innerPadding ->
@@ -61,6 +65,9 @@ fun NavitimerApp() {
                         chronoMillisProvider = vm::currentChronoMs,
                         outerText = outerText,
                         innerText = innerText,
+                        statText = statText,
+                        nautText = nautText,
+                        kmText = kmText,
                         vm = vm
                     )
                     Spacer(Modifier.size(12.dp))
@@ -73,15 +80,21 @@ fun NavitimerApp() {
                         FloatingEquations(
                             rotationDegrees = rotation,
                             outer = outerText,
-                            inner = innerText
+                            inner = innerText,
+                            statRead = statText,
+                            nautRead = nautText,
+                            kmRead = kmText
                         )
                     }
                 }
             } else {
+                // Compact / portrait: dial + buttons stay anchored at the
+                // top; the live equations panel is its own bounded scroll
+                // area at the bottom so the user can scroll the equations
+                // independently without losing sight of the watch.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -93,13 +106,26 @@ fun NavitimerApp() {
                         chronoMillisProvider = vm::currentChronoMs,
                         outerText = outerText,
                         innerText = innerText,
+                        statText = statText,
+                        nautText = nautText,
+                        kmText = kmText,
                         vm = vm
                     )
-                    FloatingEquations(
-                        rotationDegrees = rotation,
-                        outer = outerText,
-                        inner = innerText
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        FloatingEquations(
+                            rotationDegrees = rotation,
+                            outer = outerText,
+                            inner = innerText,
+                            statRead = statText,
+                            nautRead = nautText,
+                            kmRead = kmText
+                        )
+                    }
                 }
             }
         }
@@ -114,23 +140,21 @@ private fun DialColumn(
     chronoMillisProvider: () -> Long,
     outerText: String,
     innerText: String,
+    statText: String,
+    nautText: String,
+    kmText: String,
     vm: DialViewModel
 ) {
     val haptics = LocalHapticFeedback.current
 
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        // Curved preset chips arranged in a gentle arc above the watch.
+        // Reset (left, on its own) + Examples arc (right) above the watch.
         CurvedPresets(
             onSetAngle = vm::setRotation,
             onReset = vm::reset,
-            modifier = Modifier.fillMaxWidth().height(60.dp)
+            modifier = Modifier.fillMaxWidth().height(78.dp)
         )
 
-        // Watch box — dial + pusher tap targets + tiny inputs in the
-        // bottom-left CORNER GAP (the empty triangle between the round
-        // dial and the box edges). They don't overlap the dial because
-        // the watch radius is 0.44 of the box; the bottom-left corner has
-        // empty space the inputs slot into.
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
@@ -161,10 +185,7 @@ private fun DialColumn(
                     vm.chronoReset()
                 })
 
-            // Tiny inputs in the bottom-LEFT corner gap. Stacked Outer /
-            // Inner; total width ≤ 0.22 of side so they fit in the
-            // triangular empty space between the watch circle and the
-            // bottom-left edge of the box.
+            // Bottom-LEFT corner gap: Outer / Inner anchor pair.
             Box(modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 2.dp, bottom = 2.dp)
@@ -175,6 +196,24 @@ private fun DialColumn(
                     onOuterChange = vm::setOuterText,
                     onInnerChange = vm::setInnerText,
                     onCommit = vm::commitInputs
+                )
+            }
+
+            // Bottom-RIGHT corner gap: STAT / NAUT / KM converter trio.
+            Box(modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 2.dp, bottom = 2.dp)
+            ) {
+                ConverterInputs(
+                    stat = statText,
+                    naut = nautText,
+                    km = kmText,
+                    onStatChange = vm::setStatText,
+                    onNautChange = vm::setNautText,
+                    onKmChange = vm::setKmText,
+                    onCommitStat = vm::commitStat,
+                    onCommitNaut = vm::commitNaut,
+                    onCommitKm = vm::commitKm
                 )
             }
         }

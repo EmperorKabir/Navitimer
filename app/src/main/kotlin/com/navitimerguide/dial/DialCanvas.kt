@@ -42,6 +42,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.round
 import kotlin.math.sin
 
@@ -755,35 +756,32 @@ private fun DrawScope.drawBrandMarks(g: DialGeom, measurer: TextMeasurer, wingsB
 
 private fun DrawScope.drawCurvedSwissMade(g: DialGeom) {
     drawIntoCanvas { canvas ->
-        val arcRadius = g.rDial * 0.86f
+        // Slightly larger arc radius (was 0.86) — pushes both words a touch
+        // LOWER on the dial, closer to the chapter-ring inner edge.
+        val arcRadius = g.rDial * 0.91f
         val rect = android.graphics.RectF(
             g.center.x - arcRadius, g.center.y - arcRadius,
             g.center.x + arcRadius, g.center.y + arcRadius
         )
         val paint = android.graphics.Paint().apply {
             color = android.graphics.Color.argb(230, 255, 255, 255)
-            textSize = g.rDial * 0.055f
+            // Smaller textSize (was 0.055) — both words read more delicately.
+            textSize = g.rDial * 0.044f
             isAntiAlias = true
             textAlign = android.graphics.Paint.Align.CENTER
             letterSpacing = 0.10f
             isFakeBoldText = false
         }
-        // Angles in Android: 0° = +x (right), 90° = +y (down), increasing CW.
-        // For text reading LEFT-to-RIGHT along the bottom we sweep
-        // counterclockwise (negative sweep) so the path goes from the
-        // higher angle to the lower angle.
-        //
-        // SWISS — IMMEDIATELY left of the 6 o'clock baton (between 6 and 7,
-        // not all the way out to 7). Per image 17, both words sit close to
-        // the central baton.  Arc from 113° down to 95°.
+        // SWISS — slightly tighter against the 6 o'clock baton: arc from
+        // 109° down to 95° (was 113° → 95°).
         val swissPath = android.graphics.Path().apply {
-            addArc(rect, 113f, -18f)
+            addArc(rect, 109f, -14f)
         }
         canvas.nativeCanvas.drawTextOnPath("SWISS", swissPath, 0f, 0f, paint)
-        // MADE — IMMEDIATELY right of the baton (between 5 and 6). Arc
-        // from 85° down to 67°.
+        // MADE — likewise tighter on the right of the baton: arc from
+        // 85° down to 71° (was 85° → 67°).
         val madePath = android.graphics.Path().apply {
-            addArc(rect, 85f, -18f)
+            addArc(rect, 85f, -14f)
         }
         canvas.nativeCanvas.drawTextOnPath("MADE", madePath, 0f, 0f, paint)
     }
@@ -1001,12 +999,19 @@ private fun DrawScope.drawSubDialHand(
     drawLine(color = color, start = center, end = Offset(ex, ey), strokeWidth = thickness)
 }
 
+/** Beats per second of the Navitimer B01 movement (28 800 vph = 4 Hz =
+ *  8 beats / second; each beat advances the seconds hand by 1/8 second). */
+private const val NAVITIMER_BEATS_PER_SECOND: Double = 8.0
+
 private fun DrawScope.drawSubDialSecondsHand(g: DialGeom, now: LocalDateTime) {
     val subR = g.rDial * 0.26f
     val offset = g.rDial * 0.45f
     val secondsCenter = Offset(g.center.x - offset, g.center.y)
-    val s = now.second + now.nanosecond / 1e9
-    val angle = (s * 6.0).toFloat()
+    val raw = now.second + now.nanosecond / 1e9
+    // Snap to the nearest 1/8 second so the hand TICKS at 8 Hz like the
+    // real B01 — no continuous sweep.
+    val ticked = floor(raw * NAVITIMER_BEATS_PER_SECOND) / NAVITIMER_BEATS_PER_SECOND
+    val angle = (ticked * 6.0).toFloat()
     drawSubDialHand(secondsCenter, subR * 0.85f, angle, DialPalette.Hand, subR * 0.04f)
 }
 
@@ -1119,7 +1124,11 @@ private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
  *   • Small RED disc at the very end of the chrome stem.
  */
 private fun DrawScope.drawChronoSecondsHand(g: DialGeom, chronoMs: Long) {
-    val secs = (chronoMs / 1000.0) % 60.0
+    // Same 8 Hz beat as the running seconds — the B01 chrono escapement
+    // shares the main balance, so the central red hand also ticks 8x/sec.
+    val rawSec = chronoMs / 1000.0
+    val tickedSec = floor(rawSec * NAVITIMER_BEATS_PER_SECOND) / NAVITIMER_BEATS_PER_SECOND
+    val secs = tickedSec % 60.0
     val angleDeg = (secs * 6.0)
     val rad = (angleDeg - 90.0) * PI / 180.0
     val cosA = cos(rad).toFloat()
