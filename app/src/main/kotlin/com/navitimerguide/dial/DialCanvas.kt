@@ -632,11 +632,15 @@ private fun DrawScope.drawMphArrow(g: DialGeom, angleDeg: Double) {
     val perpCosA = -sinA
     val perpSinA = cosA
 
+    // Slimmed proportions — matches the photo's narrow MPH spike rather
+    // than the previous bulbous arrow. Half-widths roughly halved so the
+    // arrow doesn't crowd the KM red triangle / "KM" text just clockwise
+    // of it on the inner ring.
     val tipR = g.rChapterOuter
-    val baseR = g.rChapterInner + width * 0.20f
-    val baseHalfW = width * 0.16f
-    val midR = g.rChapterInner + width * 0.55f
-    val midHalfW = width * 0.32f
+    val baseR = g.rChapterInner + width * 0.18f
+    val baseHalfW = width * 0.085f
+    val midR = g.rChapterInner + width * 0.58f
+    val midHalfW = width * 0.16f
 
     val tipX = g.center.x + tipR * cosA
     val tipY = g.center.y + tipR * sinA

@@ -39,6 +39,10 @@ fun FloatingEquations(
     val mph = DialMath.outerValueAtInner(60.0, rotationDegrees)
     val above60 = DialMath.outerValueAtInner(60.0, rotationDegrees)
     val above36 = DialMath.outerValueAtInner(36.0, rotationDegrees)
+    // Slide-rule conversion ratios — what the bezel ACTUALLY reads when
+    // you do the alignment, not the textbook unit-conversion factor.
+    val statKmRatio = DialMath.KM_MARKER / DialMath.STAT_MARKER  // ≈ 1.605
+    val nautKmRatio = DialMath.KM_MARKER / DialMath.NAUT_MARKER  // ≈ 1.848
 
     Column(
         modifier = modifier
@@ -56,8 +60,10 @@ fun FloatingEquations(
             explanation =
                 "Pick a number on the outer ring and turn the bezel so it lines " +
                 "up with a number on the inner ring. The bezel has just done a " +
-                "division for you. To read the answer, look at the position " +
-                "above inner 10.",
+                "division for you — to read the answer, look at the position " +
+                "above inner 10.\n\n" +
+                "Alternative: line up an inner number with an outer number; the " +
+                "answer (inner divided by outer) is the inner value below outer 10.",
             live = if (x != null && y != null && y != 0.0)
                 "${fmt(x)} on the outer ring divided by ${fmt(y)} on the inner ring gives ${fmt(x / y)}."
             else "Type a number for Outer and Inner above to see the answer."
@@ -68,15 +74,19 @@ fun FloatingEquations(
             title = "Multiplication",
             explanation =
                 "The same idea works the other way. Line up outer 10 with any " +
-                "number on the inner ring, and that number becomes your " +
-                "multiplier. Pick a value on the inner side and read the " +
-                "bigger result on the outer side directly above it.",
+                "number on the inner ring — that number becomes your multiplier. " +
+                "Pick a value on the inner side and read the bigger result on the " +
+                "outer side directly above it.\n\n" +
+                "Alternative: line up inner 10 with an outer multiplier; any " +
+                "inner value times that multiplier reads on the outer scale " +
+                "above it. Either direction works — pick whichever is more " +
+                "convenient for the numbers you've got.",
             live = if (y != null)
                 "The bezel is set to multiply by ${fmt(k)}, so ${fmt(y)} becomes ${fmt(y * k)}."
             else "Slide the bezel to set a multiplier; the live value will appear here."
         )
 
-        // ---------------- Speed / Time / Distance
+        // ---------------- Speed
         Section(
             title = "Speed in miles per hour",
             explanation =
@@ -87,37 +97,55 @@ fun FloatingEquations(
             live = if (x != null && y != null && y != 0.0)
                 "Travelling ${fmt(x)} ${unit(x, "mile", "miles")} in ${fmt(y)} " +
                 "${unit(y, "minute", "minutes")} works out to ${fmt(x / y * 60.0)} mph."
-            else "Speed at the MPH index right now reads ${fmt(mph)}."
+            else "Speed at the MPH index right now reads ${fmt(mph)} mph."
+        )
+
+        // ---------------- Time (inverse of Speed)
+        Section(
+            title = "Time for a journey",
+            explanation =
+                "Once a speed is set on the dial (your mph above the 12 o'clock " +
+                "MPH index), the bezel will tell you how long any distance will " +
+                "take. Read off the inner ring directly under any outer-ring " +
+                "distance — that's the time in minutes.",
+            live = if (x != null && mph.isFinite() && mph > 0)
+                "At ${fmt(mph)} mph, ${fmt(x)} ${unit(x, "mile", "miles")} takes " +
+                "${fmt(x * 60.0 / mph)} ${unit(x * 60.0 / mph, "minute", "minutes")}."
+            else "Set a speed on the dial to see how long a distance takes."
         )
 
         // ---------------- Statute miles ↔ km
         Section(
             title = "Miles to kilometres",
             explanation =
-                "A statute mile is 1.609 kilometres. The dial has a small red " +
-                "STAT marker between 35 and 40 on the inner ring, and a KM " +
-                "marker between 60 and 65. Line up your miles value with STAT, " +
-                "then read the kilometres at KM.",
+                "Line up your miles value on the outer ring with the small red " +
+                "STAT triangle (between 35 and 40 on the inner ring). Now read " +
+                "the kilometres above the KM marker (between 60 and 65). The " +
+                "slide-rule does the multiplication by 1.609 in one move.",
             live = if (x != null) {
-                val kmVal = x * DialMath.MILE_TO_KM
-                "${fmt(x)} ${unit(x, "mile", "miles")} works out to " +
-                "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")}."
-            } else "1 mile is 1.609 kilometres."
+                val kmVal = x * statKmRatio
+                "${fmt(x)} ${unit(x, "mile", "miles")} reads " +
+                "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")} at the KM marker " +
+                "(slide-rule ratio ${fmt(statKmRatio)} vs the textbook 1.609)."
+            } else "Slide-rule reads miles × ${fmt(statKmRatio)} at the KM marker " +
+                "(textbook conversion is × 1.609)."
         )
 
         // ---------------- Nautical miles ↔ km
         Section(
             title = "Nautical miles to kilometres",
             explanation =
-                "A nautical mile is 1.852 kilometres — used at sea and in the " +
-                "air. The NAUT marker (small red triangle near 35 on the inner " +
-                "ring) plus the KM marker do the same trick as STAT, but for " +
-                "nautical miles instead of land miles.",
+                "A nautical mile is 1.852 kilometres — used at sea and in the air. " +
+                "Line up your nautical-mile value with the NAUT triangle (just " +
+                "below the STAT triangle on the inner ring). Read the kilometres " +
+                "above the KM marker, exactly as for statute miles.",
             live = if (x != null) {
-                val kmVal = x * DialMath.NAUT_TO_KM
-                "${fmt(x)} ${unit(x, "nautical mile", "nautical miles")} works out to " +
-                "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")}."
-            } else "1 nautical mile is 1.852 kilometres."
+                val kmVal = x * nautKmRatio
+                "${fmt(x)} ${unit(x, "nautical mile", "nautical miles")} reads " +
+                "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")} at the KM marker " +
+                "(slide-rule ratio ${fmt(nautKmRatio)} vs the textbook 1.852)."
+            } else "Slide-rule reads nautical miles × ${fmt(nautKmRatio)} at the KM marker " +
+                "(textbook conversion is × 1.852)."
         )
 
         // ---------------- Hours / Minutes / Seconds
