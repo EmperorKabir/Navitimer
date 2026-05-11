@@ -68,16 +68,15 @@ fun FloatingEquations(
         Section(
             title = "Division",
             primaryExplanation =
-                "Outer scale number ÷ inner scale number (with the inner number " +
-                "aligned to that outer number) = the outer scale number sitting " +
-                "above inner 10.",
+                "Pick a number on the outer ring and turn the bezel so it lines " +
+                "up with a number on the inner ring. The bezel has just done a " +
+                "division for you — read the answer above inner 10.",
             primaryLive = if (x != null && y != null && y != 0.0)
                 "Outer ${fmt(x)} ÷ inner ${fmt(y)} = ${fmt(x / y)}."
             else "Type Outer and Inner above to see the live answer.",
             altExplanation =
-                "Alternatively: inner scale number ÷ outer scale number (outer " +
-                "aligned to that inner number) = the inner scale number sitting " +
-                "below outer 10.",
+                "Alternative: line up an inner number with an outer number; " +
+                "the answer (inner ÷ outer) is the inner value below outer 10.",
             altLive = if (y != null && x != null && x != 0.0)
                 "Inner ${fmt(y)} ÷ outer ${fmt(x)} = ${fmt(y / x)}."
             else null
@@ -87,16 +86,15 @@ fun FloatingEquations(
         Section(
             title = "Multiplication",
             primaryExplanation =
-                "Align outer 10 with the inner-scale multiplier. Now any outer " +
-                "scale number × that preset multiplier = the inner scale number " +
-                "aligned to that outer number.",
+                "Line up outer 10 with any number on the inner ring — that " +
+                "number becomes your multiplier. Pick a value on the inner side " +
+                "and read the bigger result on the outer side directly above it.",
             primaryLive = if (y != null)
                 "Bezel multiplier is ${fmt(k)}; inner ${fmt(y)} × ${fmt(k)} = ${fmt(y * k)}."
             else "Slide the bezel to set a multiplier; the live value will appear here.",
             altExplanation =
-                "Alternatively: align inner 10 with the outer-scale multiplier. " +
-                "Now any inner scale number × that preset multiplier = the outer " +
-                "scale number aligned to that inner number.",
+                "Alternative: line up inner 10 with the outer multiplier; any " +
+                "inner number reads on the outer scale × that multiplier.",
             altLive = if (x != null && invK.isFinite())
                 "Outer ${fmt(x)} × ${fmt(invK)} = ${fmt(x * invK)} on inner."
             else null
@@ -164,23 +162,22 @@ fun FloatingEquations(
         Section(
             title = "Hours, minutes and seconds",
             primaryExplanation =
-                "60 seconds in a minute, 60 minutes in an hour — so 60 × 60 = " +
-                "3600 seconds per hour. That's why the red 36 markers matter: " +
-                "they stand for 3600 (seconds-per-hour). To convert hours into " +
-                "minutes and seconds, align your hours-times-10 on the outer " +
-                "scale against inner 10 (the unit index). Above inner 60 reads " +
-                "the minutes (÷ 10); above inner 36 reads the seconds (÷ 100). " +
-                "Worked example: align outer 40 (= 4 hours) with inner 10 — " +
-                "above inner 60 reads 24 (= 240 minutes), and above inner 36 " +
-                "reads 14.4 (= 14 400 seconds).",
+                "There are 60 seconds in a minute and 60 minutes in an hour, so " +
+                "60 × 60 = 3600 seconds in an hour. That's why the red 36 " +
+                "marker matters — it stands for 3600. Line up your hours-times-" +
+                "ten on the outer ring against inner 10 (the unit index). Then " +
+                "the minutes sit above inner 60, and the seconds sit above " +
+                "inner 36 — all in one move. For example: align outer 40 (= 4 " +
+                "hours) with inner 10. Above inner 60 reads 24 (= 240 minutes); " +
+                "above inner 36 reads 14.4 (= 14,400 seconds).",
             primaryLive = "${fmt(k)} ${unit(k, "hour", "hours")} = " +
                 "${fmt(k * 60)} ${unit(k * 60, "minute", "minutes")} = " +
                 "${fmt(k * 3600)} ${unit(k * 3600, "second", "seconds")}.",
             altExplanation =
-                "Alternatively: both inner and outer carry the red 36 and 60 " +
-                "markers, so you can invert the calculation just like division " +
-                "and multiplication — drive it from any of the three anchors " +
-                "(10 / 60 / 36) and the bezel keeps the others in sync.",
+                "Alternative: the 36 and 60 markers sit on BOTH the inner and " +
+                "outer rings, so you can invert the calculation just like " +
+                "division and multiplication — drive it from whichever anchor " +
+                "is more convenient and the bezel keeps the others in sync.",
             altLive =
                 "Bezel reads above inner 60: ${fmt(above60)}; above inner 36: ${fmt(above36)}."
         )
