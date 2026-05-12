@@ -666,10 +666,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
  */
 private fun DrawScope.drawMphLabel(g: DialGeom, measurer: TextMeasurer) {
     val mphAngle = DialMath.drawAngleDeg(60.0)
-    // MPH caption sits well INSIDE the chapter ring (offset 0.090 r,
-    // was 0.045 r) so the lengthened 12 o'clock double-baton hour
-    // marker can stop above the caption without overlapping it.
-    val mphTextR = g.rChapterInner - g.rOuter * 0.090f
+    val mphTextR = g.rChapterInner - g.rOuter * 0.045f
     drawScaleNumeralUpright(
         measurer = measurer,
         text = "MPH",
@@ -1148,13 +1145,16 @@ private fun DrawScope.drawDialHourIndices(g: DialGeom) {
                 // 12 o'clock — DOUBLE baton marker, slightly shorter than the
                 // single ones, with a small horizontal gap between the two.
                 val gap = g.rDial * 0.030f
-                // Inner end raised from 0.66 → 0.88 r·dial so the
-                // 12 o'clock batons stop ABOVE the MPH caption that
-                // sits just inside the chapter ring. The marker length
-                // (0.88 → 0.95) is comparable to the other hour-marker
-                // visual weight and matches the real Navitimer photo.
-                val shortIn = g.rDial * 0.88f
-                val shortOut = g.rDial * 0.95f
+                // Inner end and thickness unchanged from original. ONLY
+                // the OUTER (chapter-ring-side) end is pulled inward
+                // from 0.92 → 0.87 r·dial so the top of each baton stops
+                // just above the MPH caption that sits at radius
+                // (rChapterInner − 0.045·rOuter). MPH text top edge
+                // ≈ 0.643·rOuter ≈ 0.906·rDial; with shortOut = 0.87
+                // r·dial the baton tip sits ≈ 0.036·rDial below MPH —
+                // a comfortable visual gap.
+                val shortIn = g.rDial * 0.66f
+                val shortOut = g.rDial * 0.87f
                 drawMarker(angle, shortIn, shortOut, width * 0.85f, xOffset = -gap)
                 drawMarker(angle, shortIn, shortOut, width * 0.85f, xOffset = +gap)
             }
