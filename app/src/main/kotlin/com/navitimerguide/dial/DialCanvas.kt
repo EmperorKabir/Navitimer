@@ -8,8 +8,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -56,6 +60,12 @@ import kotlin.math.sin
  *                         counters. Driven by the system clock and the
  *                         chronograph state.
  */
+/** Hard ceiling on the system font-scale used for the dial face. The
+ *  bezel numerals and brand text still respond to Android's text-size
+ *  accessibility setting, but only up to this multiplier. Past that the
+ *  ring would overflow and the brand stack would crash into the sub-dials. */
+private const val DIAL_FONT_SCALE_CEILING: Float = 1.15f
+
 @Composable
 fun WatchDial(
     bezelRotationDegrees: Double,
@@ -64,22 +74,33 @@ fun WatchDial(
     modifier: Modifier = Modifier
 ) {
     val measurer = rememberTextMeasurer()
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .fillMaxSize()
-    ) {
-        StaticDial(measurer = measurer, modifier = Modifier.fillMaxSize())
-        RotatingBezel(
-            measurer = measurer,
-            rotationDegrees = bezelRotationDegrees,
-            modifier = Modifier.fillMaxSize()
-        )
-        LiveHandsLayer(
-            chronoState = chronoState,
-            chronoMillisProvider = chronoMillisProvider,
-            modifier = Modifier.fillMaxSize()
-        )
+    // Cap the font-scale just for the watch face. Outside this scope
+    // (equations panel, preset chips, input fields) the system's actual
+    // fontScale keeps applying unchanged.
+    val systemDensity = LocalDensity.current
+    val cappedDensity = remember(systemDensity) {
+        val capped = systemDensity.fontScale.coerceAtMost(DIAL_FONT_SCALE_CEILING)
+        if (capped == systemDensity.fontScale) systemDensity
+        else Density(density = systemDensity.density, fontScale = capped)
+    }
+    CompositionLocalProvider(LocalDensity provides cappedDensity) {
+        Box(
+            modifier = modifier
+                .aspectRatio(1f)
+                .fillMaxSize()
+        ) {
+            StaticDial(measurer = measurer, modifier = Modifier.fillMaxSize())
+            RotatingBezel(
+                measurer = measurer,
+                rotationDegrees = bezelRotationDegrees,
+                modifier = Modifier.fillMaxSize()
+            )
+            LiveHandsLayer(
+                chronoState = chronoState,
+                chronoMillisProvider = chronoMillisProvider,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }
 
