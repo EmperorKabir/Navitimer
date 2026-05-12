@@ -64,6 +64,17 @@ fun FloatingEquations(
             fontWeight = FontWeight.Bold
         )
 
+        // ---------------- Factors of 10 (static note — applies to every section)
+        InfoSection(
+            title = "Factors of 10",
+            text =
+                "All numbers can be multiplied or divided by factors of 10 — " +
+                "e.g. 40 on the bezel could be 0.004, 0.4, 4, 40, 400 etc. — " +
+                "so you need to have an approximate awareness of what factors " +
+                "of 10 you are working with. The slide rule mechanics can't " +
+                "always help you with working those out."
+        )
+
         // ---------------- Division (with alternative direction)
         Section(
             title = "Division",
@@ -180,6 +191,23 @@ fun FloatingEquations(
                 "is more convenient and the bezel keeps the others in sync.",
             altLive =
                 "Bezel reads above inner 60: ${fmt(above60)}; above inner 36: ${fmt(above36)}."
+        )
+    }
+}
+
+@Composable
+private fun InfoSection(title: String, text: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            title, style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.size(2.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
