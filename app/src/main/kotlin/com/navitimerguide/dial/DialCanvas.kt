@@ -83,6 +83,9 @@ fun WatchDial(
         else Density(density = systemDensity.density, fontScale = capped)
     }
     CompositionLocalProvider(LocalDensity provides cappedDensity) {
+        // Note: the inner-border backstop at rChapterInner lives inside
+        // StaticDial in this app too (added below). It mirrors the SRWG
+        // change one-for-one.
         // CRITICAL: rememberTextMeasurer must be called INSIDE this scope
         // so it captures the capped density. Calling it ABOVE the
         // provider (in the parent composition) silently captures the
@@ -127,6 +130,15 @@ private fun StaticDial(measurer: TextMeasurer, modifier: Modifier) {
         drawSubDialFaces(g, measurer)
         drawDialHourIndices(g)
         drawCrownAndPushers(g)
+        // Backstop: thin dark stroke at rChapterInner (chapter-ring /
+        // dial boundary). Defends against any residual text bleed at
+        // high system font scale.
+        drawCircle(
+            color = DialPalette.BezelInsertBlack,
+            radius = g.rChapterInner,
+            center = g.center,
+            style = Stroke(width = g.rOuter * 0.006f)
+        )
     }
 }
 
