@@ -1201,8 +1201,13 @@ private fun DrawScope.drawChronoSecondsHand(g: DialGeom, chronoMs: Long) {
     val cosA = cos(rad).toFloat()
     val sinA = sin(rad).toFloat()
 
-    // Red needle (hub → tip)
-    val tipLen = g.rDial * 0.66f
+    // Red needle (hub → tip). Length chosen so the tip reaches the top
+    // of the capital P in "MPH" when the hand sits at 12 o'clock.
+    // MPH text centre radius = rChapterInner − 0.045·rOuter = 0.665·rOuter;
+    // cap-height ≈ 0.022·rOuter, so the top of the P sits at
+    // ≈ 0.687·rOuter = 0.967·rDial. tipLen = 0.96·rDial leaves a
+    // hair-line margin so the tip kisses the P top without crossing it.
+    val tipLen = g.rDial * 0.96f
     val tipX = g.center.x + tipLen * cosA
     val tipY = g.center.y + tipLen * sinA
     drawLine(
