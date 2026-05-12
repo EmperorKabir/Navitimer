@@ -180,12 +180,20 @@ private fun DialColumn(
             val converterDp = with(density) {
                 converterSize.width.toDp().value to converterSize.height.toDp().value
             }
+            // Dynamic safety gap: minimum breathing space (in dp) between
+            // the dial edge and the top of a floating box. Scales with
+            // the system fontScale so users on larger Android text get
+            // proportionally more clearance. Only kicks in when a box
+            // would otherwise sit flush against (or inside) the dial.
+            val safetyGapDp = 12f * density.fontScale.coerceAtLeast(1f)
             fun overlapFor(w: Float, h: Float): Float {
                 if (w == 0f || h == 0f) return 0f
                 val dx = side.value / 2f - w
                 val dy = side.value / 2f - h
                 val cornerDist = kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
-                return (rOuter - cornerDist).coerceAtLeast(0f)
+                // Treat the dial radius as if it were larger by safetyGap;
+                // the box has to clear that inflated circle.
+                return (rOuter + safetyGapDp - cornerDist).coerceAtLeast(0f)
             }
             val overlap = maxOf(
                 overlapFor(bezelDp.first, bezelDp.second),
