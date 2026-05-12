@@ -1,5 +1,8 @@
 package com.navitimerguide.controls
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -12,31 +15,29 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navitimerguide.dial.DialMath
 
 /**
- * Header row above the watch. Layout:
+ * Header row above the watch. Reset sits standalone on the LEFT in its
+ * own emphasised style. Five example chips arch on the RIGHT under an
+ * "EXAMPLES" caption nestled inside the curve.
  *
- *   [ Reset ]   ⌒ Examples ⌒
- *               × 2.5  × 3.5  Hours  mi → km  nm → km
- *
- * Reset sits on its own at the LEFT in a slightly heavier chip style. The
- * five example chips are grouped under an "EXAMPLES" caption on the RIGHT
- * and arranged in a gentle parabolic arc so they trace the top of the
- * watch face below them.
+ * Uses [TinyChip] (custom) instead of Material 3 AssistChip so the
+ * horizontal padding can be tight enough for all five chips to fit on
+ * narrow screens at the bumped UI font size.
  */
 @Composable
 fun CurvedPresets(
@@ -44,46 +45,29 @@ fun CurvedPresets(
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val haptics = LocalHapticFeedback.current
     val examples = listOf(
-        "× 2.5"   to { onSetAngle(DialMath.alignRotation(25.0, 10.0)) },
-        "× 3.5"   to { onSetAngle(DialMath.alignRotation(35.0, 10.0)) },
-        "Hours"   to { onSetAngle(DialMath.alignRotation(40.0, 10.0)) },
-        "mi → km" to { onSetAngle(DialMath.alignRotation(10.0, DialMath.STAT_MARKER)) },
-        "nm → km" to { onSetAngle(DialMath.alignRotation(10.0, DialMath.NAUT_MARKER)) }
+        "×2.5"   to { onSetAngle(DialMath.alignRotation(25.0, 10.0)) },
+        "×3.5"   to { onSetAngle(DialMath.alignRotation(35.0, 10.0)) },
+        "Hours"  to { onSetAngle(DialMath.alignRotation(40.0, 10.0)) },
+        "mi→km"  to { onSetAngle(DialMath.alignRotation(10.0, DialMath.STAT_MARKER)) },
+        "nm→km"  to { onSetAngle(DialMath.alignRotation(10.0, DialMath.NAUT_MARKER)) }
     )
 
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         // ----- LEFT: Reset on its own, slightly emphasised -----
         Box(modifier = Modifier.padding(top = 6.dp)) {
-            AssistChip(
-                onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onReset()
-                },
-                label = {
-                    Text(
-                        "Reset",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    )
-                },
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+            TinyChip(
+                label = "Reset",
+                onClick = onReset,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                emphasised = true
             )
         }
 
         Spacer(Modifier.width(4.dp))
 
         // ----- RIGHT: arched chip row with EXAMPLES caption sitting LOW -----
-        // Pronounced parabolic curve so the chips trace the top of the
-        // round watch face below them. Centre chip ("Hours") highest;
-        // outer chips ("× 2.5", "nm → km") drop ~44 dp lower. The
-        // EXAMPLES caption is centred over the arc, vertically positioned
-        // *below* the centre chip so it nestles inside the curve.
         Box(modifier = Modifier.fillMaxHeight().fillMaxWidth()) {
             Row(
                 modifier = Modifier
@@ -95,38 +79,23 @@ fun CurvedPresets(
                 examples.forEachIndexed { i, (label, onClick) ->
                     val n = examples.size
                     val t = i.toDouble() / (n - 1).coerceAtLeast(1) - 0.5
-                    // Steeper parabolic drop. At t=±0.5 → drop ≈ 44 dp;
-                    // at t=±0.25 (the "× 3.5" / "mi → km" chips) → ≈ 11 dp;
-                    // centre chip (t=0) sits at the top of the box.
                     val drop = (t * t * 176.0).dp
-                    AssistChip(
-                        onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onClick()
-                        },
-                        label = {
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontSize = 12.sp
-                                )
-                            )
-                        },
-                        modifier = Modifier.offset(y = drop),
-                        colors = AssistChipDefaults.assistChipColors()
+                    TinyChip(
+                        label = label,
+                        onClick = onClick,
+                        fontSize = 16.sp,
+                        modifier = Modifier.offset(y = drop)
                     )
                 }
             }
-            // EXAMPLES caption nestled inside the arc, just under the
-            // centre chip. Vertically near the bottom of the row so it
-            // sits visually centred among the lower side-chips.
+            // EXAMPLES caption nestled inside the arc.
             Text(
                 "EXAMPLES",
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .offset(y = 56.dp),
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 10.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.5.sp
                 ),
@@ -142,3 +111,47 @@ fun Presets(
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) = CurvedPresets(onSetAngle, onReset, modifier)
+
+/**
+ * Compact chip with tight content-padding (~10 × 6 dp vs Material's
+ * ~16 × 8 dp). Lets five chips fit on a 411 dp emulator at 16 sp font
+ * size while still leaving room for the Reset chip on the left.
+ */
+@Composable
+private fun TinyChip(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 14.sp,
+    fontWeight: FontWeight = FontWeight.Medium,
+    emphasised: Boolean = false
+) {
+    val haptics = LocalHapticFeedback.current
+    val bgColor =
+        if (emphasised) MaterialTheme.colorScheme.surfaceVariant
+        else MaterialTheme.colorScheme.surface
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bgColor)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .clickable {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            label,
+            fontSize = fontSize,
+            fontWeight = fontWeight,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}

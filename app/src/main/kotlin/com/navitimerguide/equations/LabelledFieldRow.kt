@@ -47,7 +47,7 @@ fun LabelledFieldRow(
         Text(
             label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 9.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -77,7 +77,7 @@ fun LabelledFieldRow(
                 },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(
-                    fontSize = 12.sp,
+                    fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 ),
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),

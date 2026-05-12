@@ -22,10 +22,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -159,28 +165,36 @@ private fun DialColumn(
 
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val side = maxWidth
-            // Watch radius in the same dp space as the parent. The dial's
-            // rOuter is 0.88 of half the box's shorter side; here that
-            // shorter side = maxWidth (the watch square is always W x W).
             val rOuter = side.value * 0.5f * 0.88f
-            // Largest floating box footprint (the 3-row STAT/NAUT/KM
-            // converter is taller/wider than the 2-row Outer/Inner pair).
-            // Tuned to current ConverterInputs layout (~115 x 78 dp).
-            val boxW = 118f
-            val boxH = 84f
-            // Closest corner of the floating box to the dial centre is the
-            // box's top-inner corner. If its distance to centre is less
-            // than rOuter, the box overlaps the dial -> compute the
-            // amount we'd need to push it DOWN to clear the circle.
-            val dx = side.value / 2f - boxW
-            val dy = side.value / 2f - boxH
-            val cornerDist = kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
-            val overlap = (rOuter - cornerDist).coerceAtLeast(0f)
-            // On screens wide enough (e.g. Galaxy Fold 7 inner ~720 dp),
-            // overlap resolves to 0 and the boxes stay flush in the dial
-            // corners. On narrower screens (e.g. Pixel-class ~400 dp),
-            // overlap > 0 extends the container height so the boxes sit
-            // just below the dial without obscuring it.
+
+            // Both floating panels report their actual measured size back
+            // via onSizeChanged so the overlap calc adapts to whatever
+            // the bumped fonts / number of rows actually produce on this
+            // device. No more hard-coded width / height constants.
+            var bezelSize by remember { mutableStateOf(IntSize.Zero) }
+            var converterSize by remember { mutableStateOf(IntSize.Zero) }
+            val density = LocalDensity.current
+            val bezelDp = with(density) {
+                bezelSize.width.toDp().value to bezelSize.height.toDp().value
+            }
+            val converterDp = with(density) {
+                converterSize.width.toDp().value to converterSize.height.toDp().value
+            }
+            fun overlapFor(w: Float, h: Float): Float {
+                if (w == 0f || h == 0f) return 0f
+                val dx = side.value / 2f - w
+                val dy = side.value / 2f - h
+                val cornerDist = kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+                return (rOuter - cornerDist).coerceAtLeast(0f)
+            }
+            val overlap = maxOf(
+                overlapFor(bezelDp.first, bezelDp.second),
+                overlapFor(converterDp.first, converterDp.second)
+            )
+            // On Fold 7 (~720 dp wide) both overlaps resolve to 0 and the
+            // layout is identical to a plain square BoxWithConstraints.
+            // On narrower screens, the container grows by however many dp
+            // it takes to clear whichever box is the tighter fit.
             val containerHeight = side + overlap.dp
 
             Box(
@@ -230,6 +244,7 @@ private fun DialColumn(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(start = 2.dp, bottom = 2.dp)
+                        .onSizeChanged { bezelSize = it }
                 ) {
                     BezelInputs(
                         outer = outerText,
@@ -243,6 +258,7 @@ private fun DialColumn(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 2.dp, bottom = 2.dp)
+                        .onSizeChanged { converterSize = it }
                 ) {
                     ConverterInputs(
                         stat = statText,

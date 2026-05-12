@@ -23,15 +23,20 @@ private val Saira = FontFamily(
 
 private val Default = TextStyle(fontFamily = Saira)
 
+// UI-text defaults are ~26 % above Material's stock sizes (two compounded
+// bumps of 15 % and 10 %). Stays in .sp so Android's accessibility
+// text-size setting still applies on top. The watch face uses its own
+// TextMeasurer formula based on rOuter (capped by DIAL_FONT_SCALE_CEILING)
+// and is unaffected.
 val NavitimerTypography = Typography(
-    displayLarge = Default.copy(fontWeight = FontWeight.Bold, fontSize = 36.sp),
-    titleLarge = Default.copy(fontWeight = FontWeight.SemiBold, fontSize = 22.sp),
-    titleMedium = Default.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
-    titleSmall = Default.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
-    bodyLarge = Default.copy(fontSize = 16.sp),
-    bodyMedium = Default.copy(fontSize = 14.sp),
-    bodySmall = Default.copy(fontSize = 12.sp),
-    labelLarge = Default.copy(fontWeight = FontWeight.Medium, fontSize = 14.sp),
-    labelMedium = Default.copy(fontWeight = FontWeight.Medium, fontSize = 12.sp),
-    labelSmall = Default.copy(fontSize = 11.sp, letterSpacing = 0.5.sp)
+    displayLarge = Default.copy(fontWeight = FontWeight.Bold, fontSize = 46.sp),
+    titleLarge = Default.copy(fontWeight = FontWeight.SemiBold, fontSize = 28.sp),
+    titleMedium = Default.copy(fontWeight = FontWeight.Medium, fontSize = 20.sp),
+    titleSmall = Default.copy(fontWeight = FontWeight.SemiBold, fontSize = 18.sp),
+    bodyLarge = Default.copy(fontSize = 20.sp),
+    bodyMedium = Default.copy(fontSize = 18.sp),
+    bodySmall = Default.copy(fontSize = 16.sp),
+    labelLarge = Default.copy(fontWeight = FontWeight.Medium, fontSize = 18.sp),
+    labelMedium = Default.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
+    labelSmall = Default.copy(fontSize = 14.sp, letterSpacing = 0.5.sp)
 )
