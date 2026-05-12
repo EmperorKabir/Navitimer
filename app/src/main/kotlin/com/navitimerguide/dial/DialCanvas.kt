@@ -134,15 +134,11 @@ private fun StaticDial(measurer: TextMeasurer, modifier: Modifier) {
         drawSubDialFaces(g, measurer)
         drawDialHourIndices(g)
         drawCrownAndPushers(g)
-        // Backstop: thin dark stroke at rChapterInner (chapter-ring /
-        // dial boundary). Defends against any residual text bleed at
-        // high system font scale.
-        drawCircle(
-            color = DialPalette.BezelInsertBlack,
-            radius = g.rChapterInner,
-            center = g.center,
-            style = Stroke(width = g.rOuter * 0.006f)
-        )
+        // (Inner-border backstop removed — with fontScale capped at 1.0
+        //  and chapter-ring numerals centred at midR there is no longer
+        //  any text bleed for it to mask, and as a visible 0.006·rOuter
+        //  band straddling the dial/chapter-ring boundary it was adding a
+        //  dark seam that didn't exist on the real watch.)
     }
 }
 
@@ -255,7 +251,11 @@ private fun DrawScope.geom(): DialGeom {
     // Shrink the watch a touch so the crown + angled pushers fit inside the
     // canvas (they protrude about 9% of r past the case at 2/3/4 o'clock).
     val rOuter = (minOf(w, h) / 2f) * 0.88f
-    val rBezelOuter = rOuter * 0.99f
+    // Bezel-outer step now sits at 0.985 r (was 0.99 r) so the thicker
+    // perimeter border (0.028 r) has clean radial room inside rOuter
+    // without overpainting the bezel face. Visually it's a sub-pixel
+    // change at typical dial sizes.
+    val rBezelOuter = rOuter * 0.985f
     // Step gap between rotating bezel and fixed chapter ring tightened from
     // 0.02 r to 0.005 r so the outer and inner ticks visually almost meet
     // across a hairline step (per photo image 16).
@@ -397,7 +397,7 @@ private fun DrawScope.drawCoinEdgeBaseplate(g: DialGeom) {
     // so the pusher tabs at 2 and 4 o'clock visually break the border
     // instead of running straight through it.
     drawCircle(color = DialPalette.BezelInsertBlack, radius = g.rOuter, center = g.center,
-        style = Stroke(width = g.rOuter * 0.0156f))
+        style = Stroke(width = g.rOuter * 0.028f))
 }
 
 private fun DrawScope.drawBezelInsertRecess(g: DialGeom) {
@@ -513,7 +513,13 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
     // boundary) and grow INWARD by length-per-rank — so each inner tick
     // touches the matching outer tick at the same scale value across the
     // hairline step gap, regardless of tick rank.
-    val numeralR = g.rChapterInner + width * 0.20f
+    // Numerals centred on the band (midR). Photo-faithful: on real
+    // Navitimer chronographs the inner-rehaut numerals sit roughly
+    // centred in the chapter-ring annulus. Previous value 0.20f put the
+    // numeral centre only 0.027·rOuter above rChapterInner, less than the
+    // glyph half-height (~0.039·rOuter) — so the digit tail extended past
+    // rChapterInner and was overpainted by drawDialBackground.
+    val numeralR = g.rChapterInner + width * 0.50f
     val tickOuterR = g.rChapterOuter
     // TALL and MEDIUM are the SAME length on inner too (matches the
     // outer-bezel rule and the photo). Stroke width is the differentiator.
@@ -660,7 +666,10 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
  */
 private fun DrawScope.drawMphLabel(g: DialGeom, measurer: TextMeasurer) {
     val mphAngle = DialMath.drawAngleDeg(60.0)
-    val mphTextR = g.rChapterInner - g.rOuter * 0.045f
+    // MPH caption sits well INSIDE the chapter ring (offset 0.090 r,
+    // was 0.045 r) so the lengthened 12 o'clock double-baton hour
+    // marker can stop above the caption without overlapping it.
+    val mphTextR = g.rChapterInner - g.rOuter * 0.090f
     drawScaleNumeralUpright(
         measurer = measurer,
         text = "MPH",
@@ -1139,8 +1148,13 @@ private fun DrawScope.drawDialHourIndices(g: DialGeom) {
                 // 12 o'clock — DOUBLE baton marker, slightly shorter than the
                 // single ones, with a small horizontal gap between the two.
                 val gap = g.rDial * 0.030f
-                val shortIn = g.rDial * 0.66f
-                val shortOut = g.rDial * 0.92f
+                // Inner end raised from 0.66 → 0.88 r·dial so the
+                // 12 o'clock batons stop ABOVE the MPH caption that
+                // sits just inside the chapter ring. The marker length
+                // (0.88 → 0.95) is comparable to the other hour-marker
+                // visual weight and matches the real Navitimer photo.
+                val shortIn = g.rDial * 0.88f
+                val shortOut = g.rDial * 0.95f
                 drawMarker(angle, shortIn, shortOut, width * 0.85f, xOffset = -gap)
                 drawMarker(angle, shortIn, shortOut, width * 0.85f, xOffset = +gap)
             }
@@ -1273,7 +1287,12 @@ private fun DrawScope.drawCrownAndPushers(g: DialGeom) {
     // whole control is OUTSIDE the watch face and does not overlap
     // the bezel scale. Border = 0.0156 r stroke centred on rOuter, so
     // its outer edge is at rOuter × 1.0078.
-    val anchorR = g.rOuter * 1.0078f
+    // Border outer edge moved OUTWARD from rOuter × 1.0078 to
+    // rOuter × 1.014 because the perimeter border thickness was
+    // increased from 0.0156 r to 0.028 r. Crown/pushers still sit
+    // exactly at the border's outer edge — they grow outward from
+    // here, away from the watch face, not toward it.
+    val anchorR = g.rOuter * 1.014f
     drawAngledChronoControl(g, angleFromNorthDeg = 60.0,                  // 2 o'clock — top pusher
         shaftLen = g.rOuter * 0.020f, shaftHalfW = g.rOuter * 0.030f,
         capDepth = g.rOuter * 0.060f, capHalfW = g.rOuter * 0.065f,
