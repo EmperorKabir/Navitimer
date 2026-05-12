@@ -370,6 +370,13 @@ private fun DrawScope.drawCoinEdgeBaseplate(g: DialGeom) {
     drawCircle(color = DialPalette.SteelLight, radius = g.rOuter, center = g.center, style = Stroke(width = 1.2f))
     drawCircle(color = DialPalette.BezelEdgeShadow, radius = rBase, center = g.center,
         style = Stroke(width = g.rOuter * 0.008f))
+    // Thin black perimeter border — added to match the sibling Slide
+    // Rule Watch Guide app, at 30 % above its baseline thickness
+    // (0.012 * 1.30 ≈ 0.0156). Drawn BEFORE the crown / pushers so the
+    // pusher tabs at 2 and 4 o'clock visually break the border instead
+    // of running straight through it.
+    drawCircle(color = Color.Black, radius = g.rOuter, center = g.center,
+        style = Stroke(width = g.rOuter * 0.0156f))
 }
 
 private fun DrawScope.drawBezelInsertRecess(g: DialGeom) {
@@ -573,6 +580,10 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
                 )
             }
             m.text?.let { txt ->
+                // STAT. and NAUT. render 15 % larger than the other
+                // red-text markers (KM); they're the conversion-anchor
+                // labels and the user wants them more prominent.
+                val sizeFactor = if (txt == "STAT." || txt == "NAUT.") 1.15f else 1.0f
                 drawScaleNumeralUpright(
                     measurer = measurer,
                     text = txt,
@@ -580,7 +591,7 @@ private fun DrawScope.drawFixedChapterRing(g: DialGeom, measurer: TextMeasurer) 
                     radius = markerLabelR,
                     center = g.center,
                     color = DialPalette.Red,
-                    sizeSp = (g.rOuter * 0.038f / density).sp,
+                    sizeSp = (g.rOuter * 0.038f * sizeFactor / density).sp,
                     bold = true
                 )
             }
