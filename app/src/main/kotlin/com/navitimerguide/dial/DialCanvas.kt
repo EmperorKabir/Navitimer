@@ -370,12 +370,12 @@ private fun DrawScope.drawCoinEdgeBaseplate(g: DialGeom) {
     drawCircle(color = DialPalette.SteelLight, radius = g.rOuter, center = g.center, style = Stroke(width = 1.2f))
     drawCircle(color = DialPalette.BezelEdgeShadow, radius = rBase, center = g.center,
         style = Stroke(width = g.rOuter * 0.008f))
-    // Thin black perimeter border — added to match the sibling Slide
-    // Rule Watch Guide app, at 30 % above its baseline thickness
-    // (0.012 * 1.30 ≈ 0.0156). Drawn BEFORE the crown / pushers so the
-    // pusher tabs at 2 and 4 o'clock visually break the border instead
-    // of running straight through it.
-    drawCircle(color = Color.Black, radius = g.rOuter, center = g.center,
+    // Perimeter border, coloured to match the bezel insert background
+    // (BezelInsertBlack = 0xFF0B0B0B) so the rim and bezel face read
+    // as one continuous dark surface. Drawn BEFORE the crown / pushers
+    // so the pusher tabs at 2 and 4 o'clock visually break the border
+    // instead of running straight through it.
+    drawCircle(color = DialPalette.BezelInsertBlack, radius = g.rOuter, center = g.center,
         style = Stroke(width = g.rOuter * 0.0156f))
 }
 
