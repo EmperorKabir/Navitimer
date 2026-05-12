@@ -68,8 +68,8 @@ fun FloatingEquations(
             title = "Factors of 10",
             text =
                 "All numbers can be multiplied or divided by factors of 10. " +
-                "For example, 40 on the bezel could be 0.004, 0.4, 4, 40, or " +
-                "400. You need an approximate awareness of which factor of 10 " +
+                "For example, 40 on the bezel could be 0.004, 0.4, 4, 40, 400 " +
+                "etc. You need an approximate awareness of which factor of 10 " +
                 "you are working with. The slide rule mechanics can't always " +
                 "tell you that."
         )
@@ -85,8 +85,8 @@ fun FloatingEquations(
                 "Outer ${fmt(x)} ÷ inner ${fmt(y)} = ${fmt(x / y)}."
             else "Type Outer and Inner above to see the live answer.",
             altExplanation =
-                "Alternative: line up an inner number with an outer number; " +
-                "the answer (inner ÷ outer) is the inner value below outer 10.",
+                "Alternative: Line up an inner number with an outer number. " +
+                "The answer (inner ÷ outer) is the inner value below outer 10.",
             altLive = if (y != null && x != null && x != 0.0)
                 "Inner ${fmt(y)} ÷ outer ${fmt(x)} = ${fmt(y / x)}."
             else null
@@ -103,7 +103,7 @@ fun FloatingEquations(
                 "Bezel multiplier is ${fmt(k)}; inner ${fmt(y)} × ${fmt(k)} = ${fmt(y * k)}."
             else "Slide the bezel to set a multiplier; the live value will appear here.",
             altExplanation =
-                "Alternative: line up inner 10 with the outer multiplier; any " +
+                "Alternative: Line up inner 10 with the outer multiplier. Any " +
                 "inner number reads on the outer scale × that multiplier.",
             altLive = if (x != null && invK.isFinite())
                 "Outer ${fmt(x)} × ${fmt(invK)} = ${fmt(x * invK)} on inner."
@@ -130,9 +130,11 @@ fun FloatingEquations(
         Section(
             title = "Time for a journey",
             primaryExplanation =
-                "With a speed already on the dial, the bezel tells you how " +
-                "long any distance will take. Read the inner value below any " +
-                "outer ring distance.",
+                "First set the bezel to your speed: rotate it so the mph " +
+                "value lines up with the MPH index at 12 o'clock. The inner " +
+                "ring is now a minutes scale for that speed. Pick any " +
+                "distance on the outer ring. The journey time in minutes " +
+                "sits directly below it on the inner ring.",
             primaryLive = if (x != null && mph.isFinite() && mph > 0)
                 "At ${fmt(mph)} mph, ${fmt(x)} ${unit(x, "mile", "miles")} takes " +
                 "${fmt(x * 60.0 / mph)} ${unit(x * 60.0 / mph, "minute", "minutes")}."
@@ -184,7 +186,7 @@ fun FloatingEquations(
                 "${fmt(k * 60)} ${unit(k * 60, "minute", "minutes")} = " +
                 "${fmt(k * 3600)} ${unit(k * 3600, "second", "seconds")}.",
             altExplanation =
-                "Alternative: the 36 and 60 markers sit on both the inner " +
+                "Alternative: The 36 and 60 markers sit on both the inner " +
                 "and outer rings, so you can invert the calculation just like " +
                 "division and multiplication. Drive it from whichever anchor " +
                 "is more convenient. The bezel keeps the others in sync.",

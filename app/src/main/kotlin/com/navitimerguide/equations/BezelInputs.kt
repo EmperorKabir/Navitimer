@@ -1,19 +1,18 @@
 package com.navitimerguide.equations
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
 /**
- * Outer / Inner pair on the bottom-LEFT corner gap of the watch.
+ * Outer / Inner pair on the bottom-LEFT corner gap of the watch. No
+ * surface fill or container padding around the rows: each labelled field
+ * already has its own outlined border, so the surrounding rectangle was
+ * just adding visual weight (and overlap on smaller screens). The rows
+ * float over whatever sits behind them.
  */
 @Composable
 fun BezelInputs(
@@ -25,10 +24,7 @@ fun BezelInputs(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
-            .padding(horizontal = 4.dp, vertical = 3.dp),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         LabelledFieldRow(
