@@ -22,14 +22,13 @@ import kotlin.math.roundToInt
 /**
  * Plain-English equation panel.
  *
- * Where the watch supports BOTH directions (division ↔ inverse division,
- * multiplication ↔ inverse), each section shows two live readings — one
- * for the primary direction and one for the alternative — so the user
- * can see both interpretations of the current bezel rotation.
+ * Sections that have an alternative direction (Division, Multiplication,
+ * Hours/Min/Sec) render two live answers: the primary in the theme's
+ * primary colour, and the alternative in the tertiary colour.
  *
- * The km / nautical-km sections read VALUES STRAIGHT FROM THE BEZEL —
- * the outer scale value above each marker — rather than re-applying a
- * textbook conversion factor. That's the point of the slide rule.
+ * The km and nautical-km sections read values straight from the bezel.
+ * The outer scale value above each marker is the answer; no textbook
+ * conversion factor is re-applied. That's the point of the slide rule.
  */
 @Composable
 fun FloatingEquations(
@@ -64,24 +63,24 @@ fun FloatingEquations(
             fontWeight = FontWeight.Bold
         )
 
-        // ---------------- Factors of 10 (static note — applies to every section)
+        // ---------------- Factors of 10 (static note, applies to every section)
         InfoSection(
             title = "Factors of 10",
             text =
-                "All numbers can be multiplied or divided by factors of 10 — " +
-                "e.g. 40 on the bezel could be 0.004, 0.4, 4, 40, 400 etc. — " +
-                "so you need to have an approximate awareness of what factors " +
-                "of 10 you are working with. The slide rule mechanics can't " +
-                "always help you with working those out."
+                "All numbers can be multiplied or divided by factors of 10. " +
+                "For example, 40 on the bezel could be 0.004, 0.4, 4, 40, or " +
+                "400. You need an approximate awareness of which factor of 10 " +
+                "you are working with. The slide rule mechanics can't always " +
+                "tell you that."
         )
 
         // ---------------- Division (with alternative direction)
         Section(
             title = "Division",
             primaryExplanation =
-                "Pick a number on the outer ring and turn the bezel so it lines " +
-                "up with a number on the inner ring. The bezel has just done a " +
-                "division for you — read the answer above inner 10.",
+                "Pick a number on the outer ring. Turn the bezel so it lines " +
+                "up with a number on the inner ring. The bezel has just done " +
+                "a division for you. Read the answer above inner 10.",
             primaryLive = if (x != null && y != null && y != 0.0)
                 "Outer ${fmt(x)} ÷ inner ${fmt(y)} = ${fmt(x / y)}."
             else "Type Outer and Inner above to see the live answer.",
@@ -97,9 +96,9 @@ fun FloatingEquations(
         Section(
             title = "Multiplication",
             primaryExplanation =
-                "Line up outer 10 with any number on the inner ring — that " +
-                "number becomes your multiplier. Pick a value on the inner side " +
-                "and read the bigger result on the outer side directly above it.",
+                "Line up outer 10 with any number on the inner ring; that " +
+                "number becomes your multiplier. Pick a value on the inner " +
+                "side. Read the result on the outer side directly above it.",
             primaryLive = if (y != null)
                 "Bezel multiplier is ${fmt(k)}; inner ${fmt(y)} × ${fmt(k)} = ${fmt(y * k)}."
             else "Slide the bezel to set a multiplier; the live value will appear here.",
@@ -131,9 +130,9 @@ fun FloatingEquations(
         Section(
             title = "Time for a journey",
             primaryExplanation =
-                "With a speed already on the dial, the bezel will tell you how " +
-                "long any distance will take — read the inner value below any " +
-                "outer-ring distance.",
+                "With a speed already on the dial, the bezel tells you how " +
+                "long any distance will take. Read the inner value below any " +
+                "outer ring distance.",
             primaryLive = if (x != null && mph.isFinite() && mph > 0)
                 "At ${fmt(mph)} mph, ${fmt(x)} ${unit(x, "mile", "miles")} takes " +
                 "${fmt(x * 60.0 / mph)} ${unit(x * 60.0 / mph, "minute", "minutes")}."
@@ -159,9 +158,9 @@ fun FloatingEquations(
         Section(
             title = "Nautical miles to kilometres",
             primaryExplanation =
-                "Line up your nautical-mile value with the NAUT triangle. Read " +
-                "the kilometres above the KM marker — same trick as STAT, but " +
-                "for sea / air distances.",
+                "Line up your nautical mile value with the NAUT triangle. " +
+                "Read the kilometres above the KM marker. Same trick as STAT, " +
+                "but for sea or air distances.",
             primaryLive =
                 "${fmt(nautVal)} ${unit(nautVal, "nautical mile", "nautical miles")} = " +
                 "${fmt(kmVal)} ${unit(kmVal, "kilometre", "kilometres")}.",
@@ -173,22 +172,22 @@ fun FloatingEquations(
         Section(
             title = "Hours, minutes and seconds",
             primaryExplanation =
-                "There are 60 seconds in a minute and 60 minutes in an hour, so " +
-                "60 × 60 = 3600 seconds in an hour. That's why the red 36 " +
-                "marker matters — it stands for 3600. Line up your hours-times-" +
-                "ten on the outer ring against inner 10 (the unit index). Then " +
-                "the minutes sit above inner 60, and the seconds sit above " +
-                "inner 36 — all in one move. For example: align outer 40 (= 4 " +
-                "hours) with inner 10. Above inner 60 reads 24 (= 240 minutes); " +
-                "above inner 36 reads 14.4 (= 14,400 seconds).",
+                "There are 60 seconds in a minute and 60 minutes in an hour, " +
+                "so 60 × 60 = 3600 seconds in an hour. That's why the red 36 " +
+                "marker matters; it stands for 3600. Line up your hours times " +
+                "ten on the outer ring against inner 10, the unit index. The " +
+                "minutes sit above inner 60. The seconds sit above inner 36. " +
+                "All in one move. For example, align outer 40 (= 4 hours) " +
+                "with inner 10. Above inner 60 reads 24 (= 240 minutes). " +
+                "Above inner 36 reads 14.4 (= 14,400 seconds).",
             primaryLive = "${fmt(k)} ${unit(k, "hour", "hours")} = " +
                 "${fmt(k * 60)} ${unit(k * 60, "minute", "minutes")} = " +
                 "${fmt(k * 3600)} ${unit(k * 3600, "second", "seconds")}.",
             altExplanation =
-                "Alternative: the 36 and 60 markers sit on BOTH the inner and " +
-                "outer rings, so you can invert the calculation just like " +
-                "division and multiplication — drive it from whichever anchor " +
-                "is more convenient and the bezel keeps the others in sync.",
+                "Alternative: the 36 and 60 markers sit on both the inner " +
+                "and outer rings, so you can invert the calculation just like " +
+                "division and multiplication. Drive it from whichever anchor " +
+                "is more convenient. The bezel keeps the others in sync.",
             altLive =
                 "Bezel reads above inner 60: ${fmt(above60)}; above inner 36: ${fmt(above36)}."
         )

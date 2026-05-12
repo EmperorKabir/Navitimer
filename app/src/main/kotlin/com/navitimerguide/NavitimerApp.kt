@@ -157,66 +157,105 @@ private fun DialColumn(
             modifier = Modifier.fillMaxWidth().height(96.dp)
         )
 
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .bezelDragRotation { vm.rotateBy(it) }
-        ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val side = maxWidth
-            WatchDial(
-                bezelRotationDegrees = rotation,
-                chronoState = chronoState,
-                chronoMillisProvider = chronoMillisProvider,
-                modifier = Modifier.fillMaxSize()
-            )
-            // Top pusher tap target (start / stop)
-            Box(modifier = Modifier
-                .offset(x = side * 0.85f, y = side * 0.20f)
-                .size(width = side * 0.13f, height = side * 0.13f)
-                .clickable {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    vm.chronoStartStop()
-                })
-            // Bottom pusher tap target (reset)
-            Box(modifier = Modifier
-                .offset(x = side * 0.85f, y = side * 0.67f)
-                .size(width = side * 0.13f, height = side * 0.13f)
-                .clickable {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    vm.chronoReset()
-                })
+            // Watch radius in the same dp space as the parent. The dial's
+            // rOuter is 0.88 of half the box's shorter side; here that
+            // shorter side = maxWidth (the watch square is always W x W).
+            val rOuter = side.value * 0.5f * 0.88f
+            // Largest floating box footprint (the 3-row STAT/NAUT/KM
+            // converter is taller/wider than the 2-row Outer/Inner pair).
+            // Tuned to current ConverterInputs layout (~115 x 78 dp).
+            val boxW = 118f
+            val boxH = 84f
+            // Closest corner of the floating box to the dial centre is the
+            // box's top-inner corner. If its distance to centre is less
+            // than rOuter, the box overlaps the dial -> compute the
+            // amount we'd need to push it DOWN to clear the circle.
+            val dx = side.value / 2f - boxW
+            val dy = side.value / 2f - boxH
+            val cornerDist = kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+            val overlap = (rOuter - cornerDist).coerceAtLeast(0f)
+            // On screens wide enough (e.g. Galaxy Fold 7 inner ~720 dp),
+            // overlap resolves to 0 and the boxes stay flush in the dial
+            // corners. On narrower screens (e.g. Pixel-class ~400 dp),
+            // overlap > 0 extends the container height so the boxes sit
+            // just below the dial without obscuring it.
+            val containerHeight = side + overlap.dp
 
-            // Bottom-LEFT corner gap: Outer / Inner anchor pair.
-            Box(modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 2.dp, bottom = 2.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(containerHeight)
             ) {
-                BezelInputs(
-                    outer = outerText,
-                    inner = innerText,
-                    onOuterChange = vm::setOuterText,
-                    onInnerChange = vm::setInnerText,
-                    onCommit = vm::commitInputs
-                )
-            }
+                // Watch square — anchored to TOP-CENTER. Only the watch
+                // itself receives the bezel drag gesture; the empty
+                // overflow strip below (if any) ignores drags.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .align(Alignment.TopCenter)
+                        .bezelDragRotation { vm.rotateBy(it) }
+                ) {
+                    WatchDial(
+                        bezelRotationDegrees = rotation,
+                        chronoState = chronoState,
+                        chronoMillisProvider = chronoMillisProvider,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // Top pusher tap target (start / stop)
+                    Box(modifier = Modifier
+                        .offset(x = side * 0.85f, y = side * 0.20f)
+                        .size(width = side * 0.13f, height = side * 0.13f)
+                        .clickable {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            vm.chronoStartStop()
+                        })
+                    // Bottom pusher tap target (reset)
+                    Box(modifier = Modifier
+                        .offset(x = side * 0.85f, y = side * 0.67f)
+                        .size(width = side * 0.13f, height = side * 0.13f)
+                        .clickable {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            vm.chronoReset()
+                        })
+                }
 
-            // Bottom-RIGHT corner gap: STAT / NAUT / KM converter trio.
-            Box(modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 2.dp, bottom = 2.dp)
-            ) {
-                ConverterInputs(
-                    stat = statText,
-                    naut = nautText,
-                    km = kmText,
-                    onStatChange = vm::setStatText,
-                    onNautChange = vm::setNautText,
-                    onKmChange = vm::setKmText,
-                    onCommitStat = vm::commitStat,
-                    onCommitNaut = vm::commitNaut,
-                    onCommitKm = vm::commitKm
-                )
+                // Floating boxes anchored to the container's bottom
+                // corners. If overlap == 0 they sit inside the watch
+                // square's corners; if overlap > 0 the container has been
+                // extended downward, so the boxes sit BELOW the dial.
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 2.dp, bottom = 2.dp)
+                ) {
+                    BezelInputs(
+                        outer = outerText,
+                        inner = innerText,
+                        onOuterChange = vm::setOuterText,
+                        onInnerChange = vm::setInnerText,
+                        onCommit = vm::commitInputs
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 2.dp, bottom = 2.dp)
+                ) {
+                    ConverterInputs(
+                        stat = statText,
+                        naut = nautText,
+                        km = kmText,
+                        onStatChange = vm::setStatText,
+                        onNautChange = vm::setNautText,
+                        onKmChange = vm::setKmText,
+                        onCommitStat = vm::commitStat,
+                        onCommitNaut = vm::commitNaut,
+                        onCommitKm = vm::commitKm
+                    )
+                }
             }
         }
     }
