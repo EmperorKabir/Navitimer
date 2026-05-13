@@ -69,13 +69,21 @@ class DialViewModel : ViewModel() {
     fun currentMultiplier(): Double = DialMath.multiplierFromRotation(_rotationDegrees.value)
 
     /**
-     * "Nudge to nearest integer" — snap the bezel so the outer-scale value
-     * sitting above inner 10 is the nearest whole number to its current
-     * value. 50.4999 → 50, 50.50 → 51 (half-up), 50.0 → 50 (no change).
-     * If already aligned exactly to an integer, no-op.
+     * "Nudge to nearest integer" — round the outer-scale value the user is
+     * currently reading in the Outer field (which is the outer value at
+     * the user's chosen Inner anchor) to the nearest whole integer.
+     * 50.4999 → 50, 50.50 → 51 (half-up), 50.0 → 50 (no-op). The bezel is
+     * re-aligned so the new whole-integer outer value sits above the same
+     * Inner anchor — exactly what the Outer field will then display.
+     *
+     * Falls back to the MPH index (inner = 60, the default anchor) if the
+     * Inner field is empty / non-numeric.
      */
     fun nudgeToNearestInteger() {
-        val current = DialMath.outerValueAtInner(DialMath.SCALE_MIN, _rotationDegrees.value)
+        val innerY = _innerInput.value.toDoubleOrNull()
+            ?.takeIf { it > 0.0 && it.isFinite() }
+            ?: DialMath.RED_60_MPH
+        val current = DialMath.outerValueAtInner(innerY, _rotationDegrees.value)
         if (!current.isFinite() || current <= 0.0) return
         // Explicit half-UP rounding via floor(v + 0.5) — kotlin.math.round
         // uses banker's rounding which would map 50.5 → 50, contrary to the
@@ -83,7 +91,7 @@ class DialViewModel : ViewModel() {
         val target = kotlin.math.floor(current + 0.5)
             .coerceAtLeast(DialMath.SCALE_MIN)
         if (abs(target - current) < 1e-6) return
-        setRotation(DialMath.alignRotation(outerX = target, innerY = DialMath.SCALE_MIN))
+        setRotation(DialMath.alignRotation(outerX = target, innerY = innerY))
     }
 
     // ------------------------------------------------------------- inputs
