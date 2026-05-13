@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
 import com.navitimerguide.R
 import com.navitimerguide.viewmodel.ChronoState
-import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -160,22 +159,19 @@ private fun LiveHandsLayer(
     chronoMillisProvider: () -> Long,
     modifier: Modifier
 ) {
-    // Poll cadence must oversample the beat rate or the time-seconds hand
-    // aliases visually (Nyquist). 2× oversample is the bare minimum and
-    // leaves no margin for scheduler jitter — on slower compositions a
-    // poll can occasionally land inside the same tick bucket as its
-    // predecessor, dropping a visible tick. Use 4× idle / 8× running so
-    // even with ±30 ms jitter the visible tick rate equals the beat
-    // rate. Coerced to safe lower bounds so very large BEATS values
-    // can't produce sub-frame delays.
-    val idleDelayMs = (1000L / (NAVITIMER_BEATS_PER_SECOND.toLong() * 4L))
-        .coerceAtLeast(16L)
-    val runningDelayMs = (1000L / (NAVITIMER_BEATS_PER_SECOND.toLong() * 8L))
-        .coerceAtLeast(8L)
+    // Update the dial state once per Choreographer frame (~16 ms at 60 Hz,
+    // ~8 ms at 120 Hz). Compose's withFrameMillis is the idiomatic vsync-
+    // aligned animation tick — no sampling-rate question, no Nyquist
+    // aliasing, and Compose only recomposes the LiveHandsLayer Canvas
+    // (not the static dial). The drawSubDialSecondsHand / drawChrono*
+    // functions then quantise the visible angle to NAVITIMER_BEATS_PER_SECOND
+    // via floor(raw * BEATS) / BEATS, so the hand still ticks discretely
+    // four times per second even though the underlying state updates
+    // every frame.
     val nowState: State<LocalDateTime> = produceState(initialValue = currentLocalDateTime()) {
         while (true) {
+            androidx.compose.runtime.withFrameMillis { /* wake on next frame */ }
             value = currentLocalDateTime()
-            delay(if (chronoState == ChronoState.RUNNING) runningDelayMs else idleDelayMs)
         }
     }
     val now = nowState.value
