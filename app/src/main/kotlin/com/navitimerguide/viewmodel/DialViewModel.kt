@@ -68,6 +68,24 @@ class DialViewModel : ViewModel() {
 
     fun currentMultiplier(): Double = DialMath.multiplierFromRotation(_rotationDegrees.value)
 
+    /**
+     * "Nudge to nearest integer" — snap the bezel so the outer-scale value
+     * sitting above inner 10 is the nearest whole number to its current
+     * value. 50.4999 → 50, 50.50 → 51 (half-up), 50.0 → 50 (no change).
+     * If already aligned exactly to an integer, no-op.
+     */
+    fun nudgeToNearestInteger() {
+        val current = DialMath.outerValueAtInner(DialMath.SCALE_MIN, _rotationDegrees.value)
+        if (!current.isFinite() || current <= 0.0) return
+        // Explicit half-UP rounding via floor(v + 0.5) — kotlin.math.round
+        // uses banker's rounding which would map 50.5 → 50, contrary to the
+        // user's spec.
+        val target = kotlin.math.floor(current + 0.5)
+            .coerceAtLeast(DialMath.SCALE_MIN)
+        if (abs(target - current) < 1e-6) return
+        setRotation(DialMath.alignRotation(outerX = target, innerY = DialMath.SCALE_MIN))
+    }
+
     // ------------------------------------------------------------- inputs
     //
     // Five user-typed fields. None is silently overwritten while typing

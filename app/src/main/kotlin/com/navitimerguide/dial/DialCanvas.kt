@@ -1058,9 +1058,10 @@ private fun DrawScope.drawSubDialHand(
     drawLine(color = color, start = center, end = Offset(ex, ey), strokeWidth = thickness)
 }
 
-/** Beats per second of the Navitimer B01 movement (28 800 vph = 4 Hz =
- *  8 beats / second; each beat advances the seconds hand by 1/8 second). */
-private const val NAVITIMER_BEATS_PER_SECOND: Double = 8.0
+/** Visible tick rate for the time-seconds hand AND the central chrono
+ *  seconds hand. Set to 4 Hz per user spec so both hands advance four
+ *  times per second on this app. */
+private const val NAVITIMER_BEATS_PER_SECOND: Double = 4.0
 
 private fun DrawScope.drawSubDialSecondsHand(g: DialGeom, now: LocalDateTime) {
     val subR = g.rDial * 0.26f
