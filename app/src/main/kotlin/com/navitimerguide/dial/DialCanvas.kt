@@ -1,6 +1,8 @@
 package com.navitimerguide.dial
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -120,7 +122,14 @@ fun WatchDial(
 @Composable
 private fun StaticDial(measurer: TextMeasurer, modifier: Modifier) {
     val wingsBitmap = ImageBitmap.imageResource(R.drawable.breitling_wings)
-    Canvas(modifier = modifier) {
+    // Render the static dial into its own GPU RenderNode via
+    // graphicsLayer. Compose records the draw commands once and replays
+    // them on each frame without re-executing the (heavy) draw lambda
+    // — this is the single biggest perf win for the watch face, since
+    // ~90 coin-edge teeth, ~240 sunburst spokes, ~32 measurer.measure()
+    // text-layout calls and 3 sub-dials of guilloché rings no longer
+    // happen at the cost of every frame the live hands tick.
+    Canvas(modifier = modifier.graphicsLayer { }) {
         val g = geom()
         drawCoinEdgeBaseplate(g)
         drawBezelInsertRecess(g)
@@ -159,31 +168,35 @@ private fun LiveHandsLayer(
     chronoMillisProvider: () -> Long,
     modifier: Modifier
 ) {
-    // Refresh the dial state at 60 Hz with a plain delay-driven loop.
-    // (withFrameMillis was tried but emulator captures showed the
-    //  sub-dial seconds hand not advancing at all — empirically the
-    //  produceState + delay path actually recomposes the LiveHandsLayer
-    //  Canvas where the withFrameMillis variant did not.) The
-    //  drawSubDialSecondsHand / drawChrono* helpers quantise the visible
-    //  angle to NAVITIMER_BEATS_PER_SECOND via floor(raw * BEATS) /
-    //  BEATS, so the hand still ticks discretely at the design beat
-    //  rate even though the underlying state samples 60 ×/sec.
+    // Poll the clock at 4× the visible beat rate (8 Hz beat → ~32 Hz
+    // poll, 31 ms delay) which is a generous Nyquist margin without
+    // wasting CPU on 60 Hz state updates that all map to the same
+    // ticked angle. drawSubDialSecondsHand / drawChrono* helpers
+    // quantise the visible angle to NAVITIMER_BEATS_PER_SECOND via
+    // floor(raw * BEATS) / BEATS, so the hand still ticks discretely
+    // at the design beat rate.
     val nowState: State<LocalDateTime> = produceState(initialValue = currentLocalDateTime()) {
         while (true) {
-            kotlinx.coroutines.delay(16L)
+            kotlinx.coroutines.delay(31L)
             value = currentLocalDateTime()
         }
     }
-    val now = nowState.value
-    Canvas(modifier = modifier) {
-        val g = geom()
-        val chronoMs = chronoMillisProvider()
-        drawSubDialSecondsHand(g, now)
-        drawChronoMinAndHourHands(g, chronoMs)
-        drawTimeHands(g, now)
-        drawChronoSecondsHand(g, chronoMs)
-        drawHandHub(g)
-    }
+    // Read `now` and chrono millis INSIDE the draw lambda so the
+    // composable itself does not recompose on each tick — only the
+    // draw phase re-runs. Saves the entire compose + layout phase
+    // for the LiveHandsLayer node ~32 times per second.
+    Spacer(
+        modifier = modifier.drawBehind {
+            val now = nowState.value
+            val g = geom()
+            val chronoMs = chronoMillisProvider()
+            drawSubDialSecondsHand(g, now)
+            drawChronoMinAndHourHands(g, chronoMs)
+            drawTimeHands(g, now)
+            drawChronoSecondsHand(g, chronoMs)
+            drawHandHub(g)
+        }
+    )
 }
 
 private fun currentLocalDateTime(): LocalDateTime =
@@ -860,109 +873,6 @@ private fun DrawScope.drawCenteredText(
     val l = measurer.measure(androidx.compose.ui.text.AnnotatedString(text), style)
     drawText(textLayoutResult = l,
         topLeft = Offset(centerTopLeft.x - l.size.width / 2f, centerTopLeft.y))
-}
-
-/**
- * The Breitling Wings logo as printed on this Navitimer dial.
- * Reference: research/user-logo-3x.jpg (the user's photo, upscaled 3×)
- * and research/official-logo-3x.jpg (Breitling's stock soldier shot).
- *
- * Composition (left and right are mirror images about c.x):
- *   • OUTLINED wing — a closed contour with a curved upper "leading
- *     edge" that humps near the inner third, then sweeps down to a
- *     pointed tip. The bottom edge curves back gently.
- *   • DOTTED feather texture inside each wing — two rows of small
- *     bright circles (beadwork), 6 along the upper feather row and
- *     5 along the lower. Dot radius shrinks toward the tip.
- *   • CENTRAL anchor — a small inverted T beneath the wings' meeting
- *     point: short vertical stem + short horizontal crossbar.
- *   • WAVE underline — a 7-hump sinusoidal scroll spanning the full
- *     width, drawn just below the wings (the historic "wake" symbol).
- *
- * Coordinate system: the logo is centred at [c]; all dimensions scale
- * with [scale]. Total horizontal span ≈ 3.0 × scale; vertical ≈ 0.85.
- */
-private fun DrawScope.drawBreitlingWings(c: Offset, scale: Float) {
-    val color = DialPalette.Numeral
-    val strokeW = scale * 0.06f
-
-    // ---- Wing outlines ----
-    for (side in listOf(-1f, 1f)) {
-        val wingPath = Path().apply {
-            moveTo(c.x + side * scale * 0.06f, c.y - scale * 0.06f)
-            // Leading edge: short rise from centre, then long arched hump
-            cubicTo(
-                c.x + side * scale * 0.30f, c.y - scale * 0.42f,
-                c.x + side * scale * 0.95f, c.y - scale * 0.42f,
-                c.x + side * scale * 1.45f, c.y - scale * 0.10f
-            )
-            // Tip — small curl
-            cubicTo(
-                c.x + side * scale * 1.55f, c.y - scale * 0.02f,
-                c.x + side * scale * 1.50f, c.y + scale * 0.04f,
-                c.x + side * scale * 1.40f, c.y + scale * 0.04f
-            )
-            // Trailing (lower) edge sweeping back to centre
-            cubicTo(
-                c.x + side * scale * 1.00f, c.y + scale * 0.18f,
-                c.x + side * scale * 0.45f, c.y + scale * 0.18f,
-                c.x + side * scale * 0.06f, c.y + scale * 0.05f
-            )
-            close()
-        }
-        drawPath(wingPath, color = color, style = Stroke(width = strokeW))
-
-        // ---- Dotted beadwork — top row (along the leading edge) ----
-        run {
-            val n = 6
-            for (i in 0 until n) {
-                val t = (i + 0.5) / n
-                // Sample roughly along the upper arc
-                val px = c.x + side * scale * (0.25f + t.toFloat() * 1.10f)
-                val py = c.y - scale * (0.30f - (t.toFloat() - 0.5f) * (t.toFloat() - 0.5f) * 0.8f - 0.05f)
-                val r = scale * (0.046f - t.toFloat() * 0.014f)
-                drawCircle(color = color, radius = r, center = Offset(px, py))
-            }
-        }
-        // ---- Dotted beadwork — lower row (just below) ----
-        run {
-            val n = 5
-            for (i in 0 until n) {
-                val t = (i + 0.5) / n
-                val px = c.x + side * scale * (0.30f + t.toFloat() * 0.95f)
-                val py = c.y - scale * 0.05f
-                val r = scale * (0.034f - t.toFloat() * 0.010f)
-                drawCircle(color = color, radius = r, center = Offset(px, py))
-            }
-        }
-    }
-
-    // ---- Central anchor stub (inverted T below the wings' join) ----
-    drawLine(color = color,
-        start = Offset(c.x, c.y - scale * 0.04f),
-        end = Offset(c.x, c.y + scale * 0.18f),
-        strokeWidth = strokeW * 0.85f)
-    drawLine(color = color,
-        start = Offset(c.x - scale * 0.10f, c.y + scale * 0.16f),
-        end = Offset(c.x + scale * 0.10f, c.y + scale * 0.16f),
-        strokeWidth = strokeW * 0.75f)
-
-    // ---- Wave underline (7 humps) ----
-    val waveY = c.y + scale * 0.32f
-    val waveX0 = c.x - scale * 1.45f
-    val waveX1 = c.x + scale * 1.45f
-    val humps = 7
-    val wavePath = Path().apply {
-        moveTo(waveX0, waveY)
-        for (i in 0 until humps) {
-            val x0 = waveX0 + (waveX1 - waveX0) * i / humps
-            val x1 = waveX0 + (waveX1 - waveX0) * (i + 1) / humps
-            val xMid = (x0 + x1) / 2f
-            val yPeak = waveY - scale * 0.08f
-            quadraticBezierTo(xMid, yPeak, x1, waveY)
-        }
-    }
-    drawPath(wavePath, color = color, style = Stroke(width = strokeW * 0.7f))
 }
 
 // =============================================================== sub-dials

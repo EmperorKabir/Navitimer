@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -48,6 +49,13 @@ fun NavitimerApp() {
     val nautText by vm.nautInput.collectAsStateWithLifecycle()
     val kmText by vm.kmInput.collectAsStateWithLifecycle()
     val chronoState by vm.chronoState.collectAsStateWithLifecycle()
+    // Capture method references ONCE so Compose treats subsequent
+    // recompositions as stable. Without this, `vm::currentChronoMs`
+    // (and similar) allocate a new KFunction each composition,
+    // marking WatchDial / LiveHandsLayer params as unstable and
+    // forcing the whole dial subtree to recompose on every parent
+    // change.
+    val chronoMillis = remember(vm) { vm::currentChronoMs }
 
     Scaffold { innerPadding ->
         BoxWithConstraints(
@@ -64,7 +72,7 @@ fun NavitimerApp() {
                 WideLayout(
                     rotation = rotation,
                     chronoState = chronoState,
-                    chronoMillisProvider = vm::currentChronoMs,
+                    chronoMillisProvider = chronoMillis,
                     outerText = outerText,
                     innerText = innerText,
                     statText = statText,
@@ -89,7 +97,7 @@ fun NavitimerApp() {
                         modifier = Modifier.fillMaxWidth(),
                         rotation = rotation,
                         chronoState = chronoState,
-                        chronoMillisProvider = vm::currentChronoMs,
+                        chronoMillisProvider = chronoMillis,
                         outerText = outerText,
                         innerText = innerText,
                         statText = statText,
