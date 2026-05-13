@@ -1067,9 +1067,11 @@ private fun DrawScope.drawSubDialHand(
 }
 
 /** Visible tick rate for the time-seconds hand AND the central chrono
- *  seconds hand. Set to 4 Hz per user spec so both hands advance four
- *  times per second on this app. */
-private const val NAVITIMER_BEATS_PER_SECOND: Double = 4.0
+ *  seconds hand. Set to 8 Hz so the visible tick interval (125 ms)
+ *  stays below the Fold 7's adaptive-refresh-rate idle threshold —
+ *  matches the Slide Rule app's behaviour, which the user confirmed
+ *  ticks cleanly. */
+private const val NAVITIMER_BEATS_PER_SECOND: Double = 8.0
 
 private fun DrawScope.drawSubDialSecondsHand(g: DialGeom, now: LocalDateTime) {
     val subR = g.rDial * 0.26f
