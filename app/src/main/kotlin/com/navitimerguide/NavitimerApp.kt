@@ -126,12 +126,11 @@ fun NavitimerApp() {
                     val gapBelowDial = 4.dp
                     val midSnapDp = (sheetParentHeightDp - dialBottomDp - gapBelowDial)
                         .coerceAtLeast(56.dp)
-                    val topInset = 28.dp
-                    val fullSnapDp = (sheetParentHeightDp - topInset).coerceAtLeast(midSnapDp)
+                    val fullSnapDp = sheetParentHeightDp.coerceAtLeast(midSnapDp)
                     StayAnywhereBottomSheet(
                         title = "Live equations",
                         snapHeightsDp = listOf(56.dp, midSnapDp, fullSnapDp),
-                        topInsetDp = topInset,
+                        topInsetDp = 0.dp,
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         Column(
