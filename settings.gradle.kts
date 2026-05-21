@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Navitimer"
 include(":app")
+include(":wear")

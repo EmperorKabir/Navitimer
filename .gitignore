@@ -17,3 +17,7 @@ build/
 gradle/wrapper/gradle-wrapper.jar.lock
 sheet.html
 research/
+
+/_*.png
+.vscode/
+
