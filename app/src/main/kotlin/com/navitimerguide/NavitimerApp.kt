@@ -20,11 +20,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -82,18 +87,19 @@ fun NavitimerApp() {
                     vm = vm
                 )
             } else {
-                // Compact / portrait: dial + buttons stay anchored at the
-                // top; the live equations panel is a stay-anywhere
-                // bottom sheet the user can drag to any height. Peek bar
-                // shows a small "Live equations" title above the bottom
-                // edge. Dragging up reveals more; releasing leaves the
-                // sheet where the user let go (only snaps when very near
-                // the top or bottom of its travel).
-                Box(
+                // Compact / portrait: 3-snap-point live-equations sheet.
+                // P1 = peek. P2 = just below dial. P3 = full extent
+                // below the status bar. Middle snap height is computed
+                // at layout time from the dial's measured bottom Y.
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
+                    val sheetParentHeightDp = maxHeight
+                    var dialBottomDp by remember { mutableStateOf(0.dp) }
+                    val density = LocalDensity.current
+
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -108,11 +114,24 @@ fun NavitimerApp() {
                             statText = statText,
                             nautText = nautText,
                             kmText = kmText,
-                            vm = vm
+                            vm = vm,
+                            onDialBottomYChanged = { px ->
+                                val newDp = with(density) { px.toDp() }
+                                if ((newDp - dialBottomDp).value.let { kotlin.math.abs(it) } > 0.5f) {
+                                    dialBottomDp = newDp
+                                }
+                            },
                         )
                     }
+                    val gapBelowDial = 4.dp
+                    val midSnapDp = (sheetParentHeightDp - dialBottomDp - gapBelowDial)
+                        .coerceAtLeast(56.dp)
+                    val topInset = 28.dp
+                    val fullSnapDp = (sheetParentHeightDp - topInset).coerceAtLeast(midSnapDp)
                     StayAnywhereBottomSheet(
                         title = "Live equations",
+                        snapHeightsDp = listOf(56.dp, midSnapDp, fullSnapDp),
+                        topInsetDp = topInset,
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         Column(
@@ -153,7 +172,8 @@ private fun DialColumn(
     statText: String,
     nautText: String,
     kmText: String,
-    vm: DialViewModel
+    vm: DialViewModel,
+    onDialBottomYChanged: ((Float) -> Unit)? = null,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         CurvedPresets(
@@ -164,6 +184,7 @@ private fun DialColumn(
         )
 
         DialWithCornerInputs(
+            dialBottomYReporter = onDialBottomYChanged,
             rotation = rotation,
             chronoState = chronoState,
             chronoMillisProvider = chronoMillisProvider,
@@ -405,9 +426,22 @@ private fun DialWithCornerInputs(
     onChronoStartStop: () -> Unit,
     onChronoReset: () -> Unit,
     bezelInputs: @Composable () -> Unit,
-    converterInputs: @Composable () -> Unit
+    converterInputs: @Composable () -> Unit,
+    dialBottomYReporter: ((Float) -> Unit)? = null,
 ) {
-    SubcomposeLayout(modifier = Modifier.fillMaxWidth()) { constraints ->
+    SubcomposeLayout(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (dialBottomYReporter != null) {
+                    Modifier.onGloballyPositioned { coords ->
+                        val containerTopY = coords.positionInParent().y
+                        val dialBottomYInParent = containerTopY + coords.size.width
+                        dialBottomYReporter(dialBottomYInParent)
+                    }
+                } else Modifier
+            )
+    ) { constraints ->
         val parentWidth = constraints.maxWidth
         check(parentWidth != Constraints.Infinity) {
             "DialWithCornerInputs requires bounded width"
