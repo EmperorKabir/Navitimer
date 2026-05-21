@@ -34,6 +34,25 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
+/**
+ * Bottom-anchored sheet with N discrete snap points. Gestures on the
+ * drag-handle / title bar:
+ *
+ *   • Tap (release within touch slop of touch-down) cycles to the next
+ *     snap point upward, wrapping back to the lowest from the highest.
+ *   • Vertical drag (movement beyond touch slop) snaps to the closest
+ *     of the configured points on release.
+ *
+ * Both gestures are handled in a single [pointerInput] block via
+ * [awaitEachGesture], using touch slop to disambiguate — Compose's
+ * built-in `clickable + draggable` chain can confuse each other.
+ *
+ * `snapHeightsDp` are sheet heights in dp (visible portion above the
+ * bottom of the screen). Caller must supply at least one value.
+ *
+ * `topInsetDp` carves out a small strip at the top of the screen so
+ * the full-expand snap clears the status bar.
+ */
 @Composable
 fun StayAnywhereBottomSheet(
     title: String,

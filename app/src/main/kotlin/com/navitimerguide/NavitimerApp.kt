@@ -87,10 +87,12 @@ fun NavitimerApp() {
                     vm = vm
                 )
             } else {
-                // Compact / portrait: 3-snap-point live-equations sheet.
-                // P1 = peek. P2 = just below dial. P3 = full extent
-                // below the status bar. Middle snap height is computed
-                // at layout time from the dial's measured bottom Y.
+                // Compact / portrait: 5-snap-point live-equations sheet.
+                // P1 peek, P2 below input boxes, P3 below dial circle,
+                // P4 below chip buttons, P5 full extent. All four
+                // measured snaps derive from runtime layout values so
+                // they remain correct across screen sizes, font scales
+                // and foldable transitions.
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()

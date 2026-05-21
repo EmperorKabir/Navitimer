@@ -5,9 +5,14 @@ plugins {
 }
 
 android {
-    namespace = "com.navitimerguide"
+    namespace = "com.navitimerguide.wear"
     compileSdk = 35
 
+    // Paired-distribution: same applicationId as the phone module so a
+    // companion AAB / sideload pairing treats this wear APK as the
+    // watch-form-factor artefact of the same app. versionCode +
+    // versionName MUST match the phone — AGP rejects mismatched
+    // embedded-wear bundles.
     defaultConfig {
         applicationId = "com.navitimerguide"
         minSdk = 30
@@ -34,7 +39,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // No release signing config: this app ships sideload-debug only.
+            // Sideload-only distribution: no keystore.properties is used.
+            // Mirrors the phone module — release falls back to the debug
+            // signing config (suitable for direct APK install, not Play).
             signingConfig = signingConfigs.getByName("debug")
             ndk {
                 debugSymbolLevel = "NONE"
@@ -58,7 +65,6 @@ android {
     sourceSets {
         getByName("main").java.srcDirs("src/main/kotlin")
         getByName("test").java.srcDirs("src/test/kotlin")
-        getByName("androidTest").java.srcDirs("src/androidTest/kotlin")
     }
 
     packaging {
@@ -69,36 +75,29 @@ android {
 }
 
 dependencies {
-    // Embed the paired wear-OS APK so the phone module ships both
-    // form-factor artefacts as one paired-distribution bundle.
-    wearApp(project(":wear"))
-
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.window)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
+    // Compose BOM (reused from phone catalog) covers core compose UI / foundation.
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.foundation)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
-    implementation(libs.androidx.compose.material3.adaptive)
-    implementation(libs.androidx.compose.material3.adaptive.layout)
 
+    // Required by the ported DialViewModel / DialCanvas (used by the
+    // chronograph clock and the live time-hands layer).
     implementation(libs.kotlinx.datetime)
 
+    // Wear-specific Compose libraries. Version-pinned here (not in the
+    // shared catalog) because the phone module doesn't use them.
+    // Using the stable wear-compose-material (not the alpha material3
+    // for wear, which has not had a stable release at time of writing).
+    implementation("androidx.wear.compose:compose-material:1.4.1")
+    implementation("androidx.wear.compose:compose-foundation:1.4.1")
+    implementation("androidx.wear:wear:1.3.0")
+
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
-
-    testImplementation(libs.junit)
-
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.test.junit.ext)
-    androidTestImplementation(libs.androidx.test.espresso.core)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }

@@ -33,6 +33,27 @@ import kotlinx.coroutines.delay
 
 private const val DEBOUNCE_MS = 400L
 
+/**
+ * Single labelled tiny text field used by both bezel-input panels (the
+ * Outer/Inner pair on the bottom-left and the STAT/NAUT/KM trio on the
+ * bottom-right of the watch).
+ *
+ * Commit triggers (any of):
+ *   • 400 ms of typing inactivity after the user last changed the value
+ *     (debounce — silent, does NOT hide the keyboard, lets the user
+ *     keep editing).
+ *   • Focus loss (tab away, tap outside).
+ *   • IME action (Enter / Done) — hides the keyboard as before.
+ *
+ * Programmatic value changes pushed back from the ViewModel (e.g. when
+ * the bezel rotates and refreshes the Outer field) do NOT fire the
+ * debounce because the debounce counter only advances on user-typed
+ * input via the BasicTextField onValueChange callback.
+ *
+ * While the debounce is counting down, the field border tints to the
+ * theme primary colour so the user has a subtle visual cue that a
+ * commit is pending — without forcing them to act.
+ */
 @Composable
 fun LabelledFieldRow(
     label: String,
