@@ -3,9 +3,11 @@ package com.navitimerguide.controls
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -36,7 +38,10 @@ fun StayAnywhereBottomSheet(
     modifier: Modifier = Modifier,
     peekHeightDp: Dp = 56.dp,
     topMarginDp: Dp = 80.dp,
-    snapThresholdDp: Dp = 64.dp,
+    snapThresholdDp: Dp? = null,
+    snapFraction: Float = 0.12f,
+    minSnapDp: Dp = 40.dp,
+    maxSnapDp: Dp = 120.dp,
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -44,10 +49,18 @@ fun StayAnywhereBottomSheet(
         val parentHeightPx = with(density) { maxHeight.toPx() }
         val peekPx = with(density) { peekHeightDp.toPx() }
         val topMarginPx = with(density) { topMarginDp.toPx() }
-        val snapPx = with(density) { snapThresholdDp.toPx() }
 
         val minHeightPx = peekPx
         val maxHeightPx = (parentHeightPx - topMarginPx).coerceAtLeast(peekPx)
+        val travelPx = maxHeightPx - minHeightPx
+
+        val snapPx = if (snapThresholdDp != null) {
+            with(density) { snapThresholdDp.toPx() }
+        } else {
+            val floor = with(density) { minSnapDp.toPx() }
+            val ceil = with(density) { maxSnapDp.toPx() }
+            (travelPx * snapFraction).coerceIn(floor, ceil)
+        }
 
         val sheetHeightPx = remember(maxHeightPx) { Animatable(minHeightPx) }
         val scope = rememberCoroutineScope()
@@ -72,6 +85,18 @@ fun StayAnywhereBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(peekHeightDp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            val midpoint = minHeightPx + travelPx / 2f
+                            val target = if (sheetHeightPx.value < midpoint) {
+                                maxHeightPx
+                            } else {
+                                minHeightPx
+                            }
+                            scope.launch { sheetHeightPx.animateTo(target) }
+                        }
                         .draggable(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { delta ->
