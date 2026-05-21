@@ -452,7 +452,7 @@ private fun DialWithCornerInputs(
                     Modifier.onGloballyPositioned { coords ->
                         val containerTopY = coords.positionInParent().y
                         val chipsBottomY = containerTopY
-                        val circleBottomY = containerTopY + coords.size.width * 0.97f
+                        val circleBottomY = containerTopY + coords.size.width * 0.945f
                         val containerBottomY = containerTopY + coords.size.height
                         dialBottomYReporter(chipsBottomY, circleBottomY, containerBottomY)
                     }
