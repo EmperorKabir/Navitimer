@@ -97,7 +97,8 @@ fun NavitimerApp() {
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     val sheetParentHeightDp = maxHeight
-                    var dialBottomDp by remember { mutableStateOf(0.dp) }
+                    var dialCircleBottomDp by remember { mutableStateOf(0.dp) }
+                    var inputsBottomDp by remember { mutableStateOf(0.dp) }
                     val density = LocalDensity.current
 
                     Column(
@@ -115,21 +116,28 @@ fun NavitimerApp() {
                             nautText = nautText,
                             kmText = kmText,
                             vm = vm,
-                            onDialBottomYChanged = { px ->
-                                val newDp = with(density) { px.toDp() }
-                                if ((newDp - dialBottomDp).value.let { kotlin.math.abs(it) } > 0.5f) {
-                                    dialBottomDp = newDp
+                            onDialBottomYChanged = { dialPx, inputsPx ->
+                                val newDial = with(density) { dialPx.toDp() }
+                                val newInputs = with(density) { inputsPx.toDp() }
+                                if ((newDial - dialCircleBottomDp).value.let { kotlin.math.abs(it) } > 0.5f) {
+                                    dialCircleBottomDp = newDial
+                                }
+                                if ((newInputs - inputsBottomDp).value.let { kotlin.math.abs(it) } > 0.5f) {
+                                    inputsBottomDp = newInputs
                                 }
                             },
                         )
                     }
                     val gapBelowDial = 2.dp
-                    val midSnapDp = (sheetParentHeightDp - dialBottomDp - gapBelowDial)
+                    val gapBelowInputs = 4.dp
+                    val midSnapDp = (sheetParentHeightDp - dialCircleBottomDp - gapBelowDial)
+                        .coerceAtLeast(56.dp)
+                    val inputsSnapDp = (sheetParentHeightDp - inputsBottomDp - gapBelowInputs)
                         .coerceAtLeast(56.dp)
                     val fullSnapDp = sheetParentHeightDp.coerceAtLeast(midSnapDp)
                     StayAnywhereBottomSheet(
                         title = "Live equations",
-                        snapHeightsDp = listOf(56.dp, midSnapDp, fullSnapDp),
+                        snapHeightsDp = listOf(56.dp, inputsSnapDp, midSnapDp, fullSnapDp),
                         topInsetDp = 0.dp,
                         modifier = Modifier.fillMaxSize(),
                     ) {
@@ -172,7 +180,7 @@ private fun DialColumn(
     nautText: String,
     kmText: String,
     vm: DialViewModel,
-    onDialBottomYChanged: ((Float) -> Unit)? = null,
+    onDialBottomYChanged: ((Float, Float) -> Unit)? = null,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         CurvedPresets(
@@ -426,7 +434,7 @@ private fun DialWithCornerInputs(
     onChronoReset: () -> Unit,
     bezelInputs: @Composable () -> Unit,
     converterInputs: @Composable () -> Unit,
-    dialBottomYReporter: ((Float) -> Unit)? = null,
+    dialBottomYReporter: ((Float, Float) -> Unit)? = null,
 ) {
     SubcomposeLayout(
         modifier = Modifier
@@ -435,8 +443,9 @@ private fun DialWithCornerInputs(
                 if (dialBottomYReporter != null) {
                     Modifier.onGloballyPositioned { coords ->
                         val containerTopY = coords.positionInParent().y
-                        val dialBottomYInParent = containerTopY + coords.size.width
-                        dialBottomYReporter(dialBottomYInParent)
+                        val circleBottomYInParent = containerTopY + coords.size.width * 0.87f
+                        val containerBottomYInParent = containerTopY + coords.size.height
+                        dialBottomYReporter(circleBottomYInParent, containerBottomYInParent)
                     }
                 } else Modifier
             )
