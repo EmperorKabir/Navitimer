@@ -123,7 +123,7 @@ fun NavitimerApp() {
                             },
                         )
                     }
-                    val gapBelowDial = 4.dp
+                    val gapBelowDial = 2.dp
                     val midSnapDp = (sheetParentHeightDp - dialBottomDp - gapBelowDial)
                         .coerceAtLeast(56.dp)
                     val fullSnapDp = sheetParentHeightDp.coerceAtLeast(midSnapDp)
