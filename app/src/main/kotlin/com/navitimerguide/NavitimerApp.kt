@@ -97,6 +97,7 @@ fun NavitimerApp() {
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     val sheetParentHeightDp = maxHeight
+                    var chipsBottomDp by remember { mutableStateOf(0.dp) }
                     var dialCircleBottomDp by remember { mutableStateOf(0.dp) }
                     var inputsBottomDp by remember { mutableStateOf(0.dp) }
                     val density = LocalDensity.current
@@ -116,9 +117,13 @@ fun NavitimerApp() {
                             nautText = nautText,
                             kmText = kmText,
                             vm = vm,
-                            onDialBottomYChanged = { dialPx, inputsPx ->
+                            onDialBottomYChanged = { chipsPx, dialPx, inputsPx ->
+                                val newChips = with(density) { chipsPx.toDp() }
                                 val newDial = with(density) { dialPx.toDp() }
                                 val newInputs = with(density) { inputsPx.toDp() }
+                                if ((newChips - chipsBottomDp).value.let { kotlin.math.abs(it) } > 0.5f) {
+                                    chipsBottomDp = newChips
+                                }
                                 if ((newDial - dialCircleBottomDp).value.let { kotlin.math.abs(it) } > 0.5f) {
                                     dialCircleBottomDp = newDial
                                 }
@@ -128,16 +133,19 @@ fun NavitimerApp() {
                             },
                         )
                     }
+                    val gapBelowChips = 2.dp
                     val gapBelowDial = 2.dp
                     val gapBelowInputs = 4.dp
+                    val chipsSnapDp = (sheetParentHeightDp - chipsBottomDp - gapBelowChips)
+                        .coerceAtLeast(56.dp)
                     val midSnapDp = (sheetParentHeightDp - dialCircleBottomDp - gapBelowDial)
                         .coerceAtLeast(56.dp)
                     val inputsSnapDp = (sheetParentHeightDp - inputsBottomDp - gapBelowInputs)
                         .coerceAtLeast(56.dp)
-                    val fullSnapDp = sheetParentHeightDp.coerceAtLeast(midSnapDp)
+                    val fullSnapDp = sheetParentHeightDp.coerceAtLeast(chipsSnapDp)
                     StayAnywhereBottomSheet(
                         title = "Live equations",
-                        snapHeightsDp = listOf(56.dp, inputsSnapDp, midSnapDp, fullSnapDp),
+                        snapHeightsDp = listOf(56.dp, inputsSnapDp, midSnapDp, chipsSnapDp, fullSnapDp),
                         topInsetDp = 0.dp,
                         modifier = Modifier.fillMaxSize(),
                     ) {
@@ -180,7 +188,7 @@ private fun DialColumn(
     nautText: String,
     kmText: String,
     vm: DialViewModel,
-    onDialBottomYChanged: ((Float, Float) -> Unit)? = null,
+    onDialBottomYChanged: ((Float, Float, Float) -> Unit)? = null,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         CurvedPresets(
@@ -434,7 +442,7 @@ private fun DialWithCornerInputs(
     onChronoReset: () -> Unit,
     bezelInputs: @Composable () -> Unit,
     converterInputs: @Composable () -> Unit,
-    dialBottomYReporter: ((Float, Float) -> Unit)? = null,
+    dialBottomYReporter: ((Float, Float, Float) -> Unit)? = null,
 ) {
     SubcomposeLayout(
         modifier = Modifier
@@ -443,9 +451,10 @@ private fun DialWithCornerInputs(
                 if (dialBottomYReporter != null) {
                     Modifier.onGloballyPositioned { coords ->
                         val containerTopY = coords.positionInParent().y
-                        val circleBottomYInParent = containerTopY + coords.size.width * 0.87f
-                        val containerBottomYInParent = containerTopY + coords.size.height
-                        dialBottomYReporter(circleBottomYInParent, containerBottomYInParent)
+                        val chipsBottomY = containerTopY
+                        val circleBottomY = containerTopY + coords.size.width * 0.97f
+                        val containerBottomY = containerTopY + coords.size.height
+                        dialBottomYReporter(chipsBottomY, circleBottomY, containerBottomY)
                     }
                 } else Modifier
             )
