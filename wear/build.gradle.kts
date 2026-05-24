@@ -17,8 +17,8 @@ android {
         applicationId = "com.navitimerguide"
         minSdk = 30
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 4
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -90,6 +90,11 @@ dependencies {
     // Required by the ported DialViewModel / DialCanvas (used by the
     // chronograph clock and the live time-hands layer).
     implementation(libs.kotlinx.datetime)
+
+    // Bezel sync: phone↔watch Data Layer + persisted sync toggle.
+    implementation(libs.play.services.wearable)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Wear-specific Compose libraries. Version-pinned here (not in the
     // shared catalog) because the phone module doesn't use them.

@@ -2,6 +2,7 @@ package com.navitimerguide
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -27,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
@@ -62,12 +64,28 @@ fun NavitimerApp() {
     // change.
     val chronoMillis = remember(vm) { vm::currentChronoMs }
 
+    // Bidirectional bezel sync with a paired Wear OS watch. Incoming
+    // remote rotations apply with an epsilon echo-guard.
+    val syncState = com.navitimerguide.sync.rememberBezelSync(
+        rotationFlow = vm.rotationDegrees,
+        source = "phone",
+        onRemoteRotation = { remote ->
+            if (kotlin.math.abs(remote - vm.rotationDegrees.value) > 0.05) {
+                vm.setRotation(remote)
+            }
+        },
+    )
+    var showSyncMenu by remember { mutableStateOf(false) }
+
     Scaffold { innerPadding ->
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
+                .pointerInput(Unit) {
+                    detectTapGestures(onLongPress = { showSyncMenu = true })
+                }
         ) {
             val isWide = maxWidth >= 720.dp
             // Hoist the equations-panel scroll state so it survives any
@@ -169,6 +187,67 @@ fun NavitimerApp() {
                     }
                 }
             }
+        }
+    }
+
+    if (showSyncMenu) {
+        SyncSettingsSheet(
+            syncEnabled = syncState.syncEnabled,
+            partnerAvailable = syncState.partnerAvailable,
+            onToggle = { syncState.setSyncEnabled(it) },
+            onDismiss = { showSyncMenu = false },
+        )
+    }
+}
+
+/** Long-press settings sheet exposing the bezel-sync On/Off toggle. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun SyncSettingsSheet(
+    syncEnabled: Boolean,
+    partnerAvailable: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+        ) {
+            androidx.compose.material3.Text(
+                text = "Bezel sync",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    androidx.compose.material3.Text(
+                        text = "Sync bezel with watch",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    androidx.compose.material3.Text(
+                        text = if (partnerAvailable) "Watch connected" else "No watch detected",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                androidx.compose.material3.Switch(
+                    checked = syncEnabled,
+                    onCheckedChange = onToggle,
+                )
+            }
+            androidx.compose.material3.Text(
+                text = "When on, turning the bezel here also turns it on your paired watch (and vice versa). Works only while both apps are installed and the watch is paired.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 24.dp),
+            )
         }
     }
 }
