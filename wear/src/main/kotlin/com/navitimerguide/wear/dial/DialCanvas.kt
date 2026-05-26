@@ -2,7 +2,7 @@ package com.navitimerguide.wear.dial
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -190,15 +190,26 @@ private fun LiveHandsLayer(
     // draw phase re-runs. Saves the entire compose + layout phase
     // for the LiveHandsLayer node ~32 times per second.
     Spacer(
-        modifier = modifier.drawBehind {
-            val now = nowState.value
-            val g = geom()
-            val chronoMs = chronoMillisProvider()
-            drawSubDialSecondsHand(g, now)
-            drawChronoMinAndHourHands(g, chronoMs)
-            drawTimeHands(g, now)
-            drawChronoSecondsHand(g, chronoMs)
-            drawHandHub(g)
+        modifier = modifier.drawWithCache {
+            // Geometry depends only on size: compute the DialGeom once per
+            // size change (cache block) instead of allocating it ~32x/sec.
+            val g = geomOf(size.width, size.height)
+            // Two reusable hand-shape paths. The per-frame helpers rewind +
+            // rebuild them with the SAME moveTo/lineTo commands as before
+            // (so the rendered pixels are identical) but allocate no Path
+            // per frame. drawTimeHands and drawChronoSecondsHand run
+            // sequentially, so they safely share the same two paths.
+            val pathA = Path()
+            val pathB = Path()
+            onDrawBehind {
+                val now = nowState.value
+                val chronoMs = chronoMillisProvider()
+                drawSubDialSecondsHand(g, now)
+                drawChronoMinAndHourHands(g, chronoMs)
+                drawTimeHands(g, now, pathA, pathB)
+                drawChronoSecondsHand(g, chronoMs, pathA, pathB)
+                drawHandHub(g)
+            }
         }
     )
 }
@@ -268,9 +279,12 @@ private data class DialGeom(
  *     reeded grip stripes parallel to the cap's long axis
  * ----------------------------------------------------------------------
  */
-private fun DrawScope.geom(): DialGeom {
-    val w = size.width
-    val h = size.height
+private fun DrawScope.geom(): DialGeom = geomOf(size.width, size.height)
+
+/** Pure geometry from canvas size - callable outside DrawScope (e.g. a
+ *  drawWithCache cache block) so the live-hands layer can compute it once
+ *  per size instead of allocating a DialGeom on every frame. */
+private fun geomOf(w: Float, h: Float): DialGeom {
     val cx = w / 2f
     val cy = h / 2f
     // Shrink the watch a touch so the crown + angled pushers fit inside the
@@ -1092,7 +1106,7 @@ private fun DrawScope.drawDialHourIndices(g: DialGeom) {
 
 // =============================================================== hands (time + chrono)
 
-private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
+private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime, pOuter: Path, pInner: Path) {
     val s = now.second + now.nanosecond / 1e9
     val mFull = now.minute + s / 60.0
     val hFull = (now.hour % 12) + mFull / 60.0
@@ -1101,9 +1115,9 @@ private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
     // Hand lengths per photo: hour reaches the sub-dial markers (~0.55 r),
     // minute reaches almost to the chapter ring inner edge (~0.85 r).
     drawBatonHand(g.center, hourAngle, length = g.rDial * 0.58f,
-        outerW = g.rDial * 0.050f, innerW = g.rDial * 0.030f)
+        outerW = g.rDial * 0.050f, innerW = g.rDial * 0.030f, pOuter = pOuter, pInner = pInner)
     drawBatonHand(g.center, minAngle, length = g.rDial * 0.92f,
-        outerW = g.rDial * 0.038f, innerW = g.rDial * 0.022f)
+        outerW = g.rDial * 0.038f, innerW = g.rDial * 0.022f, pOuter = pOuter, pInner = pInner)
 }
 
 /**
@@ -1115,7 +1129,7 @@ private fun DrawScope.drawTimeHands(g: DialGeom, now: LocalDateTime) {
  *     hub is silver, not red).
  *   • Small RED disc at the very end of the chrome stem.
  */
-private fun DrawScope.drawChronoSecondsHand(g: DialGeom, chronoMs: Long) {
+private fun DrawScope.drawChronoSecondsHand(g: DialGeom, chronoMs: Long, pOuter: Path, pInner: Path) {
     // Same 8 Hz beat as the running seconds — the B01 chrono escapement
     // shares the main balance, so the central red hand also ticks 8x/sec.
     val rawSec = chronoMs / 1000.0
@@ -1154,22 +1168,21 @@ private fun DrawScope.drawChronoSecondsHand(g: DialGeom, chronoMs: Long) {
     val widthTailOuter = g.rDial * 0.020f
     val widthHubInner = g.rDial * 0.008f
     val widthTailInner = g.rDial * 0.014f
-    val stemFrame = Path().apply {
-        moveTo(g.center.x + perpX * widthHubOuter, g.center.y + perpY * widthHubOuter)
-        lineTo(g.center.x - perpX * widthHubOuter, g.center.y - perpY * widthHubOuter)
-        lineTo(tailX - perpX * widthTailOuter, tailY - perpY * widthTailOuter)
-        lineTo(tailX + perpX * widthTailOuter, tailY + perpY * widthTailOuter)
-        close()
-    }
-    drawPath(stemFrame, color = DialPalette.HandFrame)
-    val stemInner = Path().apply {
-        moveTo(g.center.x + perpX * widthHubInner, g.center.y + perpY * widthHubInner)
-        lineTo(g.center.x - perpX * widthHubInner, g.center.y - perpY * widthHubInner)
-        lineTo(tailX - perpX * widthTailInner, tailY - perpY * widthTailInner)
-        lineTo(tailX + perpX * widthTailInner, tailY + perpY * widthTailInner)
-        close()
-    }
-    drawPath(stemInner, color = DialPalette.Hand)
+    // Rewind + rebuild the supplied paths (identical geometry, no alloc).
+    pOuter.rewind()
+    pOuter.moveTo(g.center.x + perpX * widthHubOuter, g.center.y + perpY * widthHubOuter)
+    pOuter.lineTo(g.center.x - perpX * widthHubOuter, g.center.y - perpY * widthHubOuter)
+    pOuter.lineTo(tailX - perpX * widthTailOuter, tailY - perpY * widthTailOuter)
+    pOuter.lineTo(tailX + perpX * widthTailOuter, tailY + perpY * widthTailOuter)
+    pOuter.close()
+    drawPath(pOuter, color = DialPalette.HandFrame)
+    pInner.rewind()
+    pInner.moveTo(g.center.x + perpX * widthHubInner, g.center.y + perpY * widthHubInner)
+    pInner.lineTo(g.center.x - perpX * widthHubInner, g.center.y - perpY * widthHubInner)
+    pInner.lineTo(tailX - perpX * widthTailInner, tailY - perpY * widthTailInner)
+    pInner.lineTo(tailX + perpX * widthTailInner, tailY + perpY * widthTailInner)
+    pInner.close()
+    drawPath(pInner, color = DialPalette.Hand)
 }
 
 private fun DrawScope.drawHandHub(g: DialGeom) {
@@ -1179,7 +1192,8 @@ private fun DrawScope.drawHandHub(g: DialGeom) {
 }
 
 private fun DrawScope.drawBatonHand(
-    center: Offset, angleDeg: Float, length: Float, outerW: Float, innerW: Float
+    center: Offset, angleDeg: Float, length: Float, outerW: Float, innerW: Float,
+    pOuter: Path, pInner: Path
 ) {
     val rad = (angleDeg - 90.0) * PI / 180.0
     val cosA = cos(rad).toFloat()
@@ -1189,24 +1203,27 @@ private fun DrawScope.drawBatonHand(
     val backLen = length * 0.18f
     val backX = center.x - backLen * cosA
     val backY = center.y - backLen * sinA
-    fun handPath(w: Float): Path {
+    val tipFlatLen = length * 0.08f
+    val tipPreX = center.x + (length - tipFlatLen) * cosA
+    val tipPreY = center.y + (length - tipFlatLen) * sinA
+    // Rewind + rebuild into the supplied path: identical geometry to the
+    // previous Path().apply{...}, but no per-frame allocation.
+    fun build(path: Path, w: Float) {
         val perpX = -sinA * w
         val perpY = cosA * w
-        val tipFlatLen = length * 0.08f
-        val tipPreX = center.x + (length - tipFlatLen) * cosA
-        val tipPreY = center.y + (length - tipFlatLen) * sinA
-        return Path().apply {
-            moveTo(backX + perpX, backY + perpY)
-            lineTo(backX - perpX, backY - perpY)
-            lineTo(tipPreX - perpX, tipPreY - perpY)
-            lineTo(tipX, tipY)
-            lineTo(tipPreX + perpX, tipPreY + perpY)
-            close()
-        }
+        path.rewind()
+        path.moveTo(backX + perpX, backY + perpY)
+        path.lineTo(backX - perpX, backY - perpY)
+        path.lineTo(tipPreX - perpX, tipPreY - perpY)
+        path.lineTo(tipX, tipY)
+        path.lineTo(tipPreX + perpX, tipPreY + perpY)
+        path.close()
     }
-    drawPath(handPath(outerW), color = DialPalette.HandFrame)
-    drawPath(handPath(innerW), color = DialPalette.Lume)
-    drawPath(handPath(outerW), color = Color(0xFF1A1A1A), style = Stroke(width = 0.8f))
+    build(pOuter, outerW)
+    build(pInner, innerW)
+    drawPath(pOuter, color = DialPalette.HandFrame)
+    drawPath(pInner, color = DialPalette.Lume)
+    drawPath(pOuter, color = Color(0xFF1A1A1A), style = Stroke(width = 0.8f))
 }
 
 // =============================================================== crown + pushers (decorative)
