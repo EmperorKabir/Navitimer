@@ -78,7 +78,14 @@ private fun Modifier.syncGlow(alpha: Float): Modifier = drawWithContent {
 @Composable
 fun NavitimerApp() {
     val vm: DialViewModel = viewModel()
-    val rotation by vm.rotationDegrees.collectAsStateWithLifecycle()
+    val rotationState = vm.rotationDegrees.collectAsStateWithLifecycle()
+    // Defer the bezel-rotation read to the draw/layer phase: this stable
+    // provider is threaded into the dial, so changing rotation only re-runs
+    // RotatingBezel's graphicsLayer (a GPU transform) and never recomposes
+    // or re-measures the dial subtree. The equations panel still reads the
+    // value (`rotation`) so its live readouts keep updating.
+    val rotationProvider = remember { { rotationState.value.toFloat() } }
+    val rotation by rotationState
     val outerText by vm.outerInput.collectAsStateWithLifecycle()
     val innerText by vm.innerInput.collectAsStateWithLifecycle()
     val statText by vm.statInput.collectAsStateWithLifecycle()
@@ -139,7 +146,7 @@ fun NavitimerApp() {
             val equationsScroll = rememberScrollState()
             if (isWide) {
                 WideLayout(
-                    rotation = rotation,
+                    rotationProvider = rotationProvider,
                     chronoState = chronoState,
                     chronoMillisProvider = chronoMillis,
                     outerText = outerText,
@@ -175,7 +182,7 @@ fun NavitimerApp() {
                     ) {
                         DialColumn(
                             modifier = Modifier.fillMaxWidth(),
-                            rotation = rotation,
+                            rotationProvider = rotationProvider,
                             chronoState = chronoState,
                             chronoMillisProvider = chronoMillis,
                             outerText = outerText,
@@ -308,7 +315,7 @@ private fun SyncSettingsSheet(
 @Composable
 private fun DialColumn(
     modifier: Modifier,
-    rotation: Double,
+    rotationProvider: () -> Float,
     chronoState: com.navitimerguide.viewmodel.ChronoState,
     chronoMillisProvider: () -> Long,
     outerText: String,
@@ -330,7 +337,7 @@ private fun DialColumn(
 
         DialWithCornerInputs(
             dialBottomYReporter = onDialBottomYChanged,
-            rotation = rotation,
+            rotationProvider = rotationProvider,
             chronoState = chronoState,
             chronoMillisProvider = chronoMillisProvider,
             glowAlpha = glowAlpha,
@@ -380,7 +387,7 @@ private fun DialColumn(
  */
 @Composable
 private fun WideLayout(
-    rotation: Double,
+    rotationProvider: () -> Float,
     chronoState: com.navitimerguide.viewmodel.ChronoState,
     chronoMillisProvider: () -> Long,
     outerText: String,
@@ -422,7 +429,7 @@ private fun WideLayout(
             ) {
                 DialWithPushers(
                     side = dialSize.toDp(),
-                    rotation = rotation,
+                    rotationProvider = rotationProvider,
                     chronoState = chronoState,
                     chronoMillisProvider = chronoMillisProvider,
                     onChronoStartStop = vm::chronoStartStop,
@@ -481,7 +488,7 @@ private fun WideLayout(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 FloatingEquations(
-                    rotationDegrees = rotation,
+                    rotationDegrees = rotationProvider().toDouble(),
                     outer = outerText,
                     inner = innerText,
                     statRead = statText,
@@ -519,7 +526,7 @@ private fun WideLayout(
 @Composable
 private fun DialWithPushers(
     side: androidx.compose.ui.unit.Dp,
-    rotation: Double,
+    rotationProvider: () -> Float,
     chronoState: com.navitimerguide.viewmodel.ChronoState,
     chronoMillisProvider: () -> Long,
     onChronoStartStop: () -> Unit,
@@ -528,7 +535,7 @@ private fun DialWithPushers(
 ) {
     val haptics = LocalHapticFeedback.current
     WatchDial(
-        bezelRotationDegrees = rotation,
+        rotationProvider = rotationProvider,
         chronoState = chronoState,
         chronoMillisProvider = chronoMillisProvider,
         modifier = Modifier.fillMaxSize().syncGlow(glowAlpha)
@@ -568,7 +575,7 @@ private fun DialWithPushers(
  */
 @Composable
 private fun DialWithCornerInputs(
-    rotation: Double,
+    rotationProvider: () -> Float,
     chronoState: com.navitimerguide.viewmodel.ChronoState,
     chronoMillisProvider: () -> Long,
     onBezelDrag: (Double) -> Unit,
@@ -646,7 +653,7 @@ private fun DialWithCornerInputs(
             ) {
                 DialWithPushers(
                     side = sideDp,
-                    rotation = rotation,
+                    rotationProvider = rotationProvider,
                     chronoState = chronoState,
                     chronoMillisProvider = chronoMillisProvider,
                     onChronoStartStop = onChronoStartStop,
