@@ -8,16 +8,16 @@ android {
     namespace = "com.navitimerguide.wear"
     compileSdk = 35
 
-    // Paired-distribution: same applicationId as the phone module so a
-    // companion AAB / sideload pairing treats this wear APK as the
-    // watch-form-factor artefact of the same app. versionCode +
-    // versionName MUST match the phone — AGP rejects mismatched
-    // embedded-wear bundles.
+    // Same applicationId as the phone module (one app identity). No
+    // longer embedded in the phone APK, so the versionCode is now
+    // independent of the phone's (wear band: 9, …). Sideload: adb install
+    // this wear APK directly to the watch. Mirrors the Slide Rule fork's
+    // multi-APK form-factor split.
     defaultConfig {
         applicationId = "com.navitimerguide"
         minSdk = 30
         targetSdk = 35
-        versionCode = 7
+        versionCode = 9
         versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -12,7 +12,7 @@ android {
         applicationId = "com.navitimerguide"
         minSdk = 30
         targetSdk = 35
-        versionCode = 7
+        versionCode = 8
         versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -73,9 +73,11 @@ android {
 }
 
 dependencies {
-    // Embed the paired wear-OS APK so the phone module ships both
-    // form-factor artefacts as one paired-distribution bundle.
-    wearApp(project(":wear"))
+    // The watch app is NOT embedded here. Modern Wear OS (2.0+) ignores
+    // the legacy embedded micro-APK. The :wear module is built/installed
+    // independently (sideload: adb install the wear APK straight to the
+    // watch). Kept structurally parallel with the Slide Rule fork, which
+    // ships the watch bundle via Play multi-APK form-factor delivery.
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
