@@ -12,8 +12,8 @@ android {
         applicationId = "com.navitimerguide"
         minSdk = 30
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.0.5"
+        versionCode = 14
+        versionName = "1.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -73,6 +73,14 @@ android {
 }
 
 dependencies {
+    // play-services-wearable transitively pulls androidx.fragment 1.1.0
+    // (2019), which Google Play flags as an outdated SDK. The app never
+    // uses fragments directly, so constrain the resolved version up to
+    // current stable instead of adding a real dependency.
+    constraints {
+        implementation("androidx.fragment:fragment:1.8.9")
+    }
+
     // The watch app is NOT embedded here. Modern Wear OS (2.0+) ignores
     // the legacy embedded micro-APK. The :wear module is built/installed
     // independently (sideload: adb install the wear APK straight to the
